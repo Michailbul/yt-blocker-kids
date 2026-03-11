@@ -1,14 +1,13 @@
 // ============================================================
-// YT Kids Guard — Popup Logic
+// YT Kids Guard — Popup Logic (v2)
 // ============================================================
 
-// ---------- State ----------
 let state = null;
 let isParentAuthenticated = false;
 let parentSessionToken = '';
 let timerInterval = null;
 
-// ---------- Crypto (same as background) ----------
+// ---------- Crypto ----------
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + 'yt-kids-guard-salt-2024');
@@ -16,45 +15,13 @@ async function hashPassword(password) {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Authenticated message sender
 function sendAuth(msg) {
   return chrome.runtime.sendMessage({ ...msg, sessionToken: parentSessionToken });
 }
 
-// ---------- DOM Refs ----------
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
-
-// Views
-const kidsView = $('#kids-view');
-const parentView = $('#parent-view');
-const passwordModal = $('#password-modal');
-const setupModal = $('#setup-modal');
-
-// Kids elements
-const timerDisplay = $('#timer-display');
-const timerLabel = $('#timer-label');
-const timerProgress = document.querySelector('.timer-progress');
-const timerStatus = $('#timer-status');
-const statusText = $('#status-text');
-const currentChannelBar = $('#current-channel-bar');
-const currentChannelName = $('#current-channel-name');
-const channelBadge = $('#channel-badge');
-
-// Parent elements
-const dailyLimitSlider = $('#daily-limit');
-const dailyLimitValue = $('#daily-limit-value');
-const usedTime = $('#used-time');
-const remainingTime = $('#remaining-time');
-const extensionToggle = $('#extension-toggle');
-const blockShortsCheckbox = $('#block-shorts');
-const modeWhitelist = $('#mode-whitelist');
-const modeBlocklist = $('#mode-blocklist');
-const allowedChannelsList = $('#allowed-channels-list');
-const blockedChannelsList = $('#blocked-channels-list');
-const allowedCount = $('#allowed-count');
-const blockedCount = $('#blocked-count');
-const quickChannelInfo = $('#quick-channel-info');
+// ---------- DOM ----------
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
 
 // ---------- Init ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -64,138 +31,124 @@ document.addEventListener('DOMContentLoaded', async () => {
   detectCurrentChannel();
 });
 
-// Cleanup on popup close
-window.addEventListener('unload', () => {
-  if (timerInterval) clearInterval(timerInterval);
-});
+window.addEventListener('unload', () => { if (timerInterval) clearInterval(timerInterval); });
 
-// ---------- State Management ----------
+// ---------- State ----------
 async function refreshState() {
   try {
     state = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
     render();
-  } catch (e) {
-    console.error('Failed to get state:', e);
-  }
+  } catch (e) { console.error('State error:', e); }
 }
 
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === 'STATE_CHANGED') {
-    state = msg.state;
-    render();
-  }
+  if (msg.type === 'STATE_CHANGED') { state = msg.state; render(); }
 });
 
 // ---------- Render ----------
 function render() {
   if (!state) return;
 
-  // Timer display
   const remaining = state.remainingSeconds;
   const total = state.settings.dailyLimitMinutes * 60;
   const fraction = total > 0 ? remaining / total : 1;
 
-  // Update timer digits
+  // Timer digits
   if (remaining <= 0) {
-    timerDisplay.textContent = "Time's Up!";
-    timerDisplay.classList.add('times-up');
-    timerLabel.textContent = 'See you tomorrow!';
+    $('#timer-display').textContent = "Time's Up!";
+    $('#timer-display').classList.add('times-up');
+    $('#timer-label').textContent = 'see you tomorrow';
   } else {
-    const mins = Math.floor(remaining / 60);
-    const secs = remaining % 60;
-    timerDisplay.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
-    timerDisplay.classList.remove('times-up');
-    timerLabel.textContent = 'minutes left!';
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    $('#timer-display').textContent = `${m}:${String(s).padStart(2, '0')}`;
+    $('#timer-display').classList.remove('times-up');
+    $('#timer-label').textContent = 'minutes left';
   }
 
-  // Update ring progress
-  const circumference = 2 * Math.PI * 78; // ~490
+  // Ring progress
+  const circumference = 2 * Math.PI * 88; // ~553
   const offset = circumference * (1 - fraction);
-  timerProgress.style.strokeDashoffset = offset;
+  document.querySelector('.timer-progress').style.strokeDashoffset = offset;
 
-  // Color based on time remaining
-  timerProgress.classList.remove('warning', 'danger');
-  timerStatus.classList.remove('warning', 'danger');
+  // Update gradient colors based on time
+  const grad = document.querySelector('#timer-grad');
+  const statusEl = $('#timer-status');
+  statusEl.classList.remove('warning', 'danger');
 
   if (remaining <= 0) {
-    timerProgress.classList.add('danger');
-    timerStatus.classList.add('danger');
-    $('.status-emoji').textContent = '\u23F0';
-    statusText.textContent = "Time's up! Go play!";
-  } else if (remaining < 300) { // < 5 min
-    timerProgress.classList.add('danger');
-    timerStatus.classList.add('danger');
-    $('.status-emoji').textContent = '\u26A0\uFE0F';
-    statusText.textContent = 'Almost done!';
-  } else if (remaining < 600) { // < 10 min
-    timerProgress.classList.add('warning');
-    timerStatus.classList.add('warning');
-    $('.status-emoji').textContent = '\u23F3';
-    statusText.textContent = 'Watch wisely!';
+    grad.children[0].setAttribute('stop-color', '#E25555');
+    grad.children[1].setAttribute('stop-color', '#F08080');
+    statusEl.classList.add('danger');
+    $('#status-text').textContent = "Time's up! Go play!";
+  } else if (remaining < 300) {
+    grad.children[0].setAttribute('stop-color', '#E25555');
+    grad.children[1].setAttribute('stop-color', '#F08080');
+    statusEl.classList.add('danger');
+    $('#status-text').textContent = 'Almost done!';
+  } else if (remaining < 600) {
+    grad.children[0].setAttribute('stop-color', '#E8945A');
+    grad.children[1].setAttribute('stop-color', '#F0A06A');
+    statusEl.classList.add('warning');
+    $('#status-text').textContent = 'Running low...';
   } else {
-    $('.status-emoji').textContent = '\uD83C\uDFAC';
-    statusText.textContent = 'Happy watching!';
+    grad.children[0].setAttribute('stop-color', '#D4723C');
+    grad.children[1].setAttribute('stop-color', '#E89460');
+    $('#status-text').textContent = 'Watching time active';
   }
 
-  // Parent dashboard
-  if (isParentAuthenticated) {
-    renderParentDashboard();
-  }
+  if (isParentAuthenticated) renderParent();
 }
 
-function renderParentDashboard() {
+function renderParent() {
   if (!state) return;
-
   const s = state.settings;
-  dailyLimitSlider.value = s.dailyLimitMinutes;
-  dailyLimitValue.textContent = `${s.dailyLimitMinutes} min`;
+
+  // Timer tab
+  $('#daily-limit').value = s.dailyLimitMinutes;
+  $('#daily-limit-value').textContent = `${s.dailyLimitMinutes} min`;
+  updateRangeStyle($('#daily-limit'));
 
   const usedMins = Math.floor(state.watchData.secondsUsed / 60);
   const remainMins = Math.max(0, s.dailyLimitMinutes - usedMins);
-  usedTime.textContent = `Used: ${usedMins} min`;
-  remainingTime.textContent = `Left: ${remainMins} min`;
+  const usedPct = s.dailyLimitMinutes > 0 ? Math.min(100, (usedMins / s.dailyLimitMinutes) * 100) : 0;
+  $('#used-time').textContent = `${usedMins} min used`;
+  $('#remaining-time').textContent = `${remainMins} min left`;
+  const bar = $('#usage-bar');
+  bar.style.width = `${usedPct}%`;
+  bar.classList.toggle('danger', usedPct > 85);
 
-  extensionToggle.checked = s.extensionEnabled;
-  blockShortsCheckbox.checked = s.blockShorts;
+  // Settings
+  $('#extension-toggle').checked = s.extensionEnabled;
+  $('#block-shorts').checked = s.blockShorts;
 
-  if (s.filterMode === 'whitelist') {
-    modeWhitelist.checked = true;
-  } else {
-    modeBlocklist.checked = true;
-  }
-
-  // Show/hide sections based on mode
+  // Mode
+  $$('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === s.filterMode));
   $('#allowed-section').style.display = s.filterMode === 'whitelist' ? 'block' : 'none';
   $('#blocked-section').style.display = s.filterMode === 'blocklist' ? 'block' : 'none';
 
-  // Render channel lists
-  renderChannelList(allowedChannelsList, s.allowedChannels, 'allowed');
-  renderChannelList(blockedChannelsList, s.blockedChannels, 'blocked');
-
-  allowedCount.textContent = s.allowedChannels.length;
-  blockedCount.textContent = s.blockedChannels.length;
+  // Channel lists
+  renderChannelList($('#allowed-channels-list'), s.allowedChannels, 'allowed');
+  renderChannelList($('#blocked-channels-list'), s.blockedChannels, 'blocked');
+  $('#allowed-count').textContent = s.allowedChannels.length;
+  $('#blocked-count').textContent = s.blockedChannels.length;
 }
 
 function renderChannelList(container, channels, type) {
   if (channels.length === 0) {
-    container.innerHTML = `<p class="empty-list">${
-      type === 'allowed'
-        ? 'No channels added yet. Add channels your kids can watch!'
-        : 'No channels blocked.'
-    }</p>`;
+    container.innerHTML = `<p class="muted-text">${type === 'allowed' ? 'No channels added yet' : 'No channels blocked'}</p>`;
     return;
   }
-
   container.innerHTML = channels.map(ch => `
     <div class="channel-item">
-      <span class="channel-item-name">${escapeHtml(ch.name)}</span>
-      ${ch.handle ? `<span class="channel-item-handle">${escapeHtml(ch.handle)}</span>` : ''}
-      <button class="channel-remove-btn" data-name="${escapeAttr(ch.name)}" data-type="${type}" title="Remove">\u00D7</button>
+      <div class="channel-item-dot ${type}"></div>
+      <span class="channel-item-name">${esc(ch.name)}</span>
+      ${ch.handle ? `<span class="channel-item-handle">${esc(ch.handle)}</span>` : ''}
+      <button class="channel-remove" data-name="${escAttr(ch.name)}" data-type="${type}">\u00D7</button>
     </div>
   `).join('');
 
-  // Bind remove buttons
-  container.querySelectorAll('.channel-remove-btn').forEach(btn => {
+  container.querySelectorAll('.channel-remove').forEach(btn => {
     btn.addEventListener('click', () => {
       const name = btn.dataset.name;
       const msgType = btn.dataset.type === 'allowed' ? 'REMOVE_ALLOWED_CHANNEL' : 'UNBLOCK_CHANNEL';
@@ -205,295 +158,247 @@ function renderChannelList(container, channels, type) {
   });
 }
 
-// ---------- Current Channel Detection ----------
+function updateRangeStyle(el) {
+  const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
+  el.style.setProperty('--pct', pct + '%');
+}
+
+// ---------- Channel Detection ----------
 async function detectCurrentChannel() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.url || !tab.url.includes('youtube.com')) {
-      currentChannelBar.style.display = 'none';
+      $('#current-channel-bar').style.display = 'none';
       return;
     }
 
-    // Get current channel from background
-    if (state && state.currentChannelByTab && state.currentChannelByTab[tab.id]) {
-      const ch = state.currentChannelByTab[tab.id];
-      if (ch.name) {
-        showCurrentChannel(ch);
-        return;
-      }
+    if (state?.currentChannelByTab?.[tab.id]?.name) {
+      showChannel(state.currentChannelByTab[tab.id]);
+      return;
     }
 
-    // Try to extract from the tab via scripting
     try {
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          const selectors = [
+          for (const sel of [
             'ytd-video-owner-renderer #channel-name a',
             'ytd-video-owner-renderer ytd-channel-name a',
             '#owner #channel-name a',
             'ytd-channel-name yt-formatted-string a',
-          ];
-          for (const sel of selectors) {
+          ]) {
             const el = document.querySelector(sel);
-            if (el) {
-              return { name: el.textContent.trim(), url: el.href || '' };
-            }
+            if (el) return { name: el.textContent.trim(), url: el.href || '' };
           }
           return null;
         },
       });
-
-      if (results && results[0] && results[0].result) {
-        showCurrentChannel(results[0].result);
-      } else {
-        currentChannelBar.style.display = 'none';
-      }
-    } catch {
-      currentChannelBar.style.display = 'none';
-    }
-  } catch {
-    currentChannelBar.style.display = 'none';
-  }
+      if (results?.[0]?.result) showChannel(results[0].result);
+      else $('#current-channel-bar').style.display = 'none';
+    } catch { $('#current-channel-bar').style.display = 'none'; }
+  } catch { $('#current-channel-bar').style.display = 'none'; }
 }
 
-function showCurrentChannel(ch) {
-  currentChannelBar.style.display = 'flex';
-  currentChannelName.textContent = ch.name || 'Unknown';
+function showChannel(ch) {
+  $('#current-channel-bar').style.display = 'flex';
+  $('#current-channel-name').textContent = ch.name || 'Unknown';
 
-  // Check if allowed/blocked
-  if (state && state.settings) {
+  if (state?.settings) {
     const s = state.settings;
-    const norm = (str) => (str || '').toLowerCase().trim();
-    const isAllowed = s.allowedChannels.some(c => norm(c.name) === norm(ch.name));
-    const isBlocked = s.blockedChannels.some(c => norm(c.name) === norm(ch.name));
+    const n = (v) => (v || '').toLowerCase().trim();
+    const isAllowed = s.allowedChannels.some(c => n(c.name) === n(ch.name));
+    const isBlocked = s.blockedChannels.some(c => n(c.name) === n(ch.name));
 
-    if (isBlocked) {
-      channelBadge.textContent = 'Blocked';
-      channelBadge.className = 'channel-badge blocked';
-    } else if (isAllowed || s.filterMode === 'blocklist') {
-      channelBadge.textContent = 'Allowed';
-      channelBadge.className = 'channel-badge allowed';
-    } else {
-      channelBadge.textContent = 'Not Listed';
-      channelBadge.className = 'channel-badge blocked';
-    }
+    const badge = $('#channel-badge');
+    if (isBlocked) { badge.textContent = 'Blocked'; badge.className = 'channel-badge blocked'; }
+    else if (isAllowed || s.filterMode === 'blocklist') { badge.textContent = 'Allowed'; badge.className = 'channel-badge allowed'; }
+    else { badge.textContent = 'Not Listed'; badge.className = 'channel-badge blocked'; }
   }
 
-  // Also update quick actions in parent view
   renderQuickActions(ch);
 }
 
 function renderQuickActions(ch) {
-  if (!ch || !ch.name) {
-    quickChannelInfo.innerHTML = `<p class="no-channel">Open a YouTube video to see channel actions here</p>`;
+  const el = $('#quick-channel-info');
+  if (!ch?.name) {
+    el.innerHTML = '<p class="muted-text">Open a YouTube video to manage channels</p>';
     return;
   }
-
-  quickChannelInfo.innerHTML = `
+  el.innerHTML = `
     <div class="quick-channel-row">
-      <span style="font-size:20px">\uD83D\uDCFA</span>
-      <span class="quick-channel-name">${escapeHtml(ch.name)}</span>
+      <div class="quick-channel-icon">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6.5 6.5l3.5 2-3.5 2z" fill="currentColor"/></svg>
+      </div>
+      <span class="quick-channel-name">${esc(ch.name)}</span>
     </div>
-    <div class="quick-channel-actions">
-      <button class="btn-block-channel" id="quick-block-btn">\uD83D\uDEAB Block Channel</button>
-      <button class="btn-allow-channel" id="quick-allow-btn">\u2705 Allow Channel</button>
+    <div class="quick-actions-btns">
+      <button class="btn btn-small btn-primary" id="quick-allow-btn">Allow</button>
+      <button class="btn btn-small btn-danger" id="quick-block-btn">Block</button>
     </div>
   `;
-
-  $('#quick-block-btn').addEventListener('click', async () => {
-    await sendAuth({ type: 'BLOCK_CHANNEL', channel: ch });
-    toast(`Blocked: ${ch.name}`);
-    await refreshState();
-  });
 
   $('#quick-allow-btn').addEventListener('click', async () => {
     await sendAuth({ type: 'ADD_ALLOWED_CHANNEL', channel: ch });
     toast(`Allowed: ${ch.name}`);
     await refreshState();
   });
+  $('#quick-block-btn').addEventListener('click', async () => {
+    await sendAuth({ type: 'BLOCK_CHANNEL', channel: ch });
+    toast(`Blocked: ${ch.name}`);
+    await refreshState();
+  });
 }
 
-// ---------- Timer Update Loop ----------
+// ---------- Timer Loop ----------
 function startTimerUpdate() {
   timerInterval = setInterval(async () => {
     try {
-      const resp = await chrome.runtime.sendMessage({ type: 'CHECK_STATUS' });
-      if (resp) {
-        if (state) {
-          state.remainingSeconds = resp.remainingSeconds;
-          state.isTimeUp = resp.isTimeUp;
-        }
+      const r = await chrome.runtime.sendMessage({ type: 'CHECK_STATUS' });
+      if (r && state) {
+        state.remainingSeconds = r.remainingSeconds;
+        state.isTimeUp = r.isTimeUp;
         render();
       }
-    } catch {
-      // Extension context may be invalidated
-    }
+    } catch {}
   }, 1000);
 }
 
-// ---------- Event Bindings ----------
+// ---------- Events ----------
 function bindEvents() {
   // Parent access
   $('#parent-access-btn').addEventListener('click', () => {
-    if (!state || !state.hasPassword) {
-      showSetupModal();
-    } else {
-      showPasswordModal();
-    }
+    if (!state || !state.hasPassword) showSetupModal();
+    else showPasswordModal();
   });
 
   // Password modal
   $('#password-cancel').addEventListener('click', hideModals);
   $('#password-submit').addEventListener('click', submitPassword);
-  $('#password-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') submitPassword();
-  });
+  $('#password-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitPassword(); });
 
   // Setup modal
   $('#setup-cancel').addEventListener('click', hideModals);
   $('#setup-submit').addEventListener('click', submitSetup);
-  $('#setup-confirm').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') submitSetup();
-  });
+  $('#setup-confirm').addEventListener('keydown', e => { if (e.key === 'Enter') submitSetup(); });
 
-  // Back button
+  // Back
   $('#back-btn').addEventListener('click', () => {
     isParentAuthenticated = false;
     parentSessionToken = '';
-    parentView.classList.add('hidden');
-    parentView.classList.remove('active');
-    kidsView.classList.remove('hidden');
-    kidsView.classList.add('active');
+    // Deactivate parent mode
+    chrome.storage.local.set({ parentModeUntil: 0 });
+    switchView('kids');
   });
 
-  // Settings changes (all use authenticated messages)
-  dailyLimitSlider.addEventListener('input', () => {
-    dailyLimitValue.textContent = `${dailyLimitSlider.value} min`;
-  });
-  dailyLimitSlider.addEventListener('change', () => {
-    sendAuth({
-      type: 'UPDATE_SETTINGS',
-      dailyLimitMinutes: parseInt(dailyLimitSlider.value),
+  // Tabs
+  $$('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      $$('.tab').forEach(t => t.classList.remove('active'));
+      $$('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      $(`#${tab.dataset.tab}`).classList.add('active');
     });
   });
 
-  extensionToggle.addEventListener('change', () => {
-    sendAuth({
-      type: 'UPDATE_SETTINGS',
-      extensionEnabled: extensionToggle.checked,
+  // Range slider
+  const range = $('#daily-limit');
+  range.addEventListener('input', () => {
+    $('#daily-limit-value').textContent = `${range.value} min`;
+    updateRangeStyle(range);
+  });
+  range.addEventListener('change', () => {
+    sendAuth({ type: 'UPDATE_SETTINGS', dailyLimitMinutes: parseInt(range.value) });
+  });
+
+  // Toggle switches
+  $('#extension-toggle').addEventListener('change', function() {
+    sendAuth({ type: 'UPDATE_SETTINGS', extensionEnabled: this.checked });
+  });
+  $('#block-shorts').addEventListener('change', function() {
+    sendAuth({ type: 'UPDATE_SETTINGS', blockShorts: this.checked });
+  });
+
+  // Mode buttons
+  $$('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      sendAuth({ type: 'UPDATE_SETTINGS', filterMode: btn.dataset.mode });
     });
   });
 
-  blockShortsCheckbox.addEventListener('change', () => {
-    sendAuth({
-      type: 'UPDATE_SETTINGS',
-      blockShorts: blockShortsCheckbox.checked,
-    });
-  });
-
-  // Filter mode
-  modeWhitelist.addEventListener('change', () => {
-    if (modeWhitelist.checked) {
-      sendAuth({ type: 'UPDATE_SETTINGS', filterMode: 'whitelist' });
-    }
-  });
-  modeBlocklist.addEventListener('change', () => {
-    if (modeBlocklist.checked) {
-      sendAuth({ type: 'UPDATE_SETTINGS', filterMode: 'blocklist' });
-    }
-  });
-
-  // Reset timer
+  // Timer actions
   $('#reset-timer-btn').addEventListener('click', async () => {
     await sendAuth({ type: 'RESET_TIMER' });
     toast('Timer reset!');
   });
-
-  // Add time
   $('#add-time-btn').addEventListener('click', async () => {
     await sendAuth({ type: 'ADD_TIME', minutes: 15 });
     toast('+15 minutes added!');
   });
 
-  // Add allowed channel
-  $('#add-allowed-btn').addEventListener('click', () => {
-    const input = $('#add-allowed-input');
-    const name = input.value.trim();
-    if (!name) return;
-    sendAuth({
-      type: 'ADD_ALLOWED_CHANNEL',
-      channel: { name, handle: name.startsWith('@') ? name : '' },
-    });
-    input.value = '';
-    toast(`Added: ${name}`);
-  });
-  $('#add-allowed-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') $('#add-allowed-btn').click();
-  });
+  // Add channels
+  bindAddChannel('add-allowed-input', 'add-allowed-btn', 'ADD_ALLOWED_CHANNEL', 'Added');
+  bindAddChannel('add-blocked-input', 'add-blocked-btn', 'BLOCK_CHANNEL', 'Blocked');
 
-  // Add blocked channel
-  $('#add-blocked-btn').addEventListener('click', () => {
-    const input = $('#add-blocked-input');
-    const name = input.value.trim();
-    if (!name) return;
-    sendAuth({
-      type: 'BLOCK_CHANNEL',
-      channel: { name, handle: name.startsWith('@') ? name : '' },
-    });
-    input.value = '';
-    toast(`Blocked: ${name}`);
-  });
-  $('#add-blocked-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') $('#add-blocked-btn').click();
+  // Parent mode (browse YouTube to manage channels on thumbnails)
+  $('#activate-parent-mode').addEventListener('click', async () => {
+    const until = Date.now() + 30 * 60 * 1000; // 30 minutes
+    await chrome.storage.local.set({ parentModeUntil: until });
+    // Notify all YouTube tabs
+    const tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
+    for (const tab of tabs) {
+      try { await chrome.tabs.sendMessage(tab.id, { type: 'PARENT_MODE_ACTIVATED' }); } catch {}
+    }
+    toast('Parent mode active for 30 min. Browse YouTube to manage channels.');
   });
 
   // Change password
   $('#change-password-btn').addEventListener('click', async () => {
-    const newPw = $('#new-password').value;
-    const confirmPw = $('#confirm-password').value;
+    const pw = $('#new-password').value;
+    const confirm = $('#confirm-password').value;
     const msg = $('#password-msg');
 
-    if (!newPw || newPw.length < 4) {
-      msg.textContent = 'Password must be at least 4 characters';
-      msg.className = 'password-msg error';
-      msg.classList.remove('hidden');
-      return;
-    }
-    if (newPw !== confirmPw) {
-      msg.textContent = 'Passwords don\'t match!';
-      msg.className = 'password-msg error';
-      msg.classList.remove('hidden');
-      return;
-    }
+    if (!pw || pw.length < 4) { showMsg(msg, 'Password must be at least 4 characters', 'error'); return; }
+    if (pw !== confirm) { showMsg(msg, "Passwords don't match", 'error'); return; }
 
-    const passwordHash = await hashPassword(newPw);
-    const resp = await sendAuth({ type: 'SET_PASSWORD', passwordHash });
-    if (resp && resp.success) {
-      parentSessionToken = resp.sessionToken;
-      msg.textContent = 'Password updated!';
-      msg.className = 'password-msg success';
+    const hash = await hashPassword(pw);
+    const r = await sendAuth({ type: 'SET_PASSWORD', passwordHash: hash });
+    if (r?.success) {
+      parentSessionToken = r.sessionToken;
+      showMsg(msg, 'Password updated!', 'success');
     } else {
-      msg.textContent = 'Failed to update password';
-      msg.className = 'password-msg error';
+      showMsg(msg, 'Failed to update', 'error');
     }
-    msg.classList.remove('hidden');
     $('#new-password').value = '';
     $('#confirm-password').value = '';
-    setTimeout(() => msg.classList.add('hidden'), 2000);
   });
 }
 
-// ---------- Password Handling ----------
+function bindAddChannel(inputId, btnId, msgType, verb) {
+  const btn = $(`#${btnId}`);
+  const input = $(`#${inputId}`);
+  const action = () => {
+    const name = input.value.trim();
+    if (!name) return;
+    sendAuth({ type: msgType, channel: { name, handle: name.startsWith('@') ? name : '' } });
+    input.value = '';
+    toast(`${verb}: ${name}`);
+  };
+  btn.addEventListener('click', action);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') action(); });
+}
+
+// ---------- Password ----------
 function showPasswordModal() {
-  passwordModal.classList.remove('hidden');
+  $('#password-modal').classList.remove('hidden');
   $('#password-error').classList.add('hidden');
   $('#password-input').value = '';
   setTimeout(() => $('#password-input').focus(), 100);
 }
 
 function showSetupModal() {
-  setupModal.classList.remove('hidden');
+  $('#setup-modal').classList.remove('hidden');
   $('#setup-error').classList.add('hidden');
   $('#setup-password').value = '';
   $('#setup-confirm').value = '';
@@ -501,38 +406,30 @@ function showSetupModal() {
 }
 
 function hideModals() {
-  passwordModal.classList.add('hidden');
-  setupModal.classList.add('hidden');
+  $('#password-modal').classList.add('hidden');
+  $('#setup-modal').classList.add('hidden');
 }
 
 async function submitPassword() {
-  const password = $('#password-input').value;
-  if (!password) return;
+  const pw = $('#password-input').value;
+  if (!pw) return;
+  const hash = await hashPassword(pw);
+  const r = await chrome.runtime.sendMessage({ type: 'VERIFY_PASSWORD', passwordHash: hash });
 
-  const passwordHash = await hashPassword(password);
-  const resp = await chrome.runtime.sendMessage({ type: 'VERIFY_PASSWORD', passwordHash });
-
-  if (resp.success) {
+  if (r.success) {
     isParentAuthenticated = true;
-    parentSessionToken = resp.sessionToken;
+    parentSessionToken = r.sessionToken;
     hideModals();
-    kidsView.classList.add('hidden');
-    kidsView.classList.remove('active');
-    parentView.classList.remove('hidden');
-    parentView.classList.add('active');
+    switchView('parent');
     await refreshState();
-    renderParentDashboard();
-  } else if (resp.locked) {
-    const errEl = $('#password-error');
-    errEl.textContent = `Too many attempts. Locked for ${resp.retryAfter}s.`;
-    errEl.classList.remove('hidden');
+    renderParent();
+  } else if (r.locked) {
+    $('#password-error').textContent = `Locked for ${r.retryAfter}s. Too many attempts.`;
+    $('#password-error').classList.remove('hidden');
     $('#password-input').value = '';
   } else {
-    const errEl = $('#password-error');
-    errEl.textContent = resp.attemptsLeft
-      ? `Wrong password! ${resp.attemptsLeft} attempts left.`
-      : 'Wrong password! Try again.';
-    errEl.classList.remove('hidden');
+    $('#password-error').textContent = r.attemptsLeft ? `Wrong password. ${r.attemptsLeft} attempts left.` : 'Wrong password.';
+    $('#password-error').classList.remove('hidden');
     $('#password-input').value = '';
     $('#password-input').focus();
   }
@@ -541,61 +438,46 @@ async function submitPassword() {
 async function submitSetup() {
   const pw = $('#setup-password').value;
   const confirm = $('#setup-confirm').value;
+  if (!pw || pw.length < 4) { $('#setup-error').textContent = 'Min 4 characters'; $('#setup-error').classList.remove('hidden'); return; }
+  if (pw !== confirm) { $('#setup-error').textContent = "Passwords don't match"; $('#setup-error').classList.remove('hidden'); return; }
 
-  if (!pw || pw.length < 4) {
-    $('#setup-error').textContent = 'Password must be at least 4 characters';
-    $('#setup-error').classList.remove('hidden');
-    return;
-  }
-  if (pw !== confirm) {
-    $('#setup-error').textContent = "Passwords don't match!";
-    $('#setup-error').classList.remove('hidden');
-    return;
-  }
-
-  const passwordHash = await hashPassword(pw);
-  const resp = await chrome.runtime.sendMessage({ type: 'SET_PASSWORD', passwordHash });
-
-  if (resp && resp.success) {
-    parentSessionToken = resp.sessionToken;
-    hideModals();
+  const hash = await hashPassword(pw);
+  const r = await chrome.runtime.sendMessage({ type: 'SET_PASSWORD', passwordHash: hash });
+  if (r?.success) {
+    parentSessionToken = r.sessionToken;
     isParentAuthenticated = true;
-    kidsView.classList.add('hidden');
-    kidsView.classList.remove('active');
-    parentView.classList.remove('hidden');
-    parentView.classList.add('active');
+    hideModals();
+    switchView('parent');
     await refreshState();
-    renderParentDashboard();
-    toast('Password set! Welcome to the parent dashboard.');
+    renderParent();
+    toast('Password set! Welcome.');
   }
+}
+
+function switchView(view) {
+  $('#kids-view').classList.toggle('active', view === 'kids');
+  $('#kids-view').classList.toggle('hidden', view !== 'kids');
+  $('#parent-view').classList.toggle('active', view === 'parent');
+  $('#parent-view').classList.toggle('hidden', view !== 'parent');
 }
 
 // ---------- Helpers ----------
-function escapeHtml(s) {
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
-}
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escAttr(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
-function escapeAttr(s) {
-  return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+function showMsg(el, text, type) {
+  el.textContent = text;
+  el.className = 'modal-error' + (type === 'success' ? ' success' : '');
+  el.style.color = type === 'success' ? 'var(--green)' : 'var(--red)';
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
 function toast(message) {
-  const existing = document.querySelector('.toast');
-  if (existing) existing.remove();
-
+  const container = $('#toast-container');
   const el = document.createElement('div');
   el.className = 'toast';
   el.textContent = message;
-  document.body.appendChild(el);
-
-  requestAnimationFrame(() => {
-    el.classList.add('show');
-  });
-
-  setTimeout(() => {
-    el.classList.remove('show');
-    setTimeout(() => el.remove(), 300);
-  }, 2000);
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 2200);
 }

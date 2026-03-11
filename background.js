@@ -302,8 +302,13 @@ async function setPasswordHash(passwordHash) {
   return null;
 }
 
-function isAuthorized(msg) {
-  return msg.sessionToken && msg.sessionToken === sessionToken;
+async function isAuthorized(msg) {
+  // Check session token from popup
+  if (msg.sessionToken && msg.sessionToken === sessionToken) return true;
+  // Check parent mode (for content script thumbnail buttons)
+  const data = await chrome.storage.local.get(['parentModeUntil']);
+  if (data.parentModeUntil && Date.now() < data.parentModeUntil) return true;
+  return false;
 }
 
 // ---------- Broadcast ----------
@@ -347,7 +352,7 @@ async function handleMessage(msg, sender) {
 
     // --- All mutations below require auth ---
     case 'UPDATE_SETTINGS': {
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       if (msg.dailyLimitMinutes !== undefined) settings.dailyLimitMinutes = msg.dailyLimitMinutes;
       if (msg.blockShorts !== undefined) settings.blockShorts = msg.blockShorts;
       if (msg.filterMode !== undefined) settings.filterMode = msg.filterMode;
@@ -360,7 +365,7 @@ async function handleMessage(msg, sender) {
     }
 
     case 'RESET_TIMER':
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       watchData.secondsUsed = 0;
       watchData.date = getToday();
       await saveWatchData();
@@ -370,7 +375,7 @@ async function handleMessage(msg, sender) {
       return { success: true };
 
     case 'ADD_TIME': {
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       const addMinutes = msg.minutes || 15;
       watchData.secondsUsed = Math.max(0, watchData.secondsUsed - (addMinutes * 60));
       await saveWatchData();
@@ -383,35 +388,35 @@ async function handleMessage(msg, sender) {
     }
 
     case 'ADD_ALLOWED_CHANNEL':
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       addAllowedChannel(msg.channel);
       await notifyAllYouTubeTabs({ type: 'SETTINGS_UPDATED', settings });
       broadcastState();
       return { success: true };
 
     case 'REMOVE_ALLOWED_CHANNEL':
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       removeAllowedChannel(msg.channelName);
       await notifyAllYouTubeTabs({ type: 'SETTINGS_UPDATED', settings });
       broadcastState();
       return { success: true };
 
     case 'BLOCK_CHANNEL':
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       addBlockedChannel(msg.channel);
       await notifyAllYouTubeTabs({ type: 'SETTINGS_UPDATED', settings });
       broadcastState();
       return { success: true };
 
     case 'UNBLOCK_CHANNEL':
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       removeBlockedChannel(msg.channelName);
       await notifyAllYouTubeTabs({ type: 'SETTINGS_UPDATED', settings });
       broadcastState();
       return { success: true };
 
     case 'BLOCK_CURRENT_CHANNEL': {
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       if (tabs.length > 0 && currentChannelByTab[tabs[0].id]) {
         const ch = currentChannelByTab[tabs[0].id];
@@ -424,7 +429,7 @@ async function handleMessage(msg, sender) {
     }
 
     case 'ALLOW_CURRENT_CHANNEL': {
-      if (!isAuthorized(msg)) return { success: false, error: 'unauthorized' };
+      if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       if (tabs.length > 0 && currentChannelByTab[tabs[0].id]) {
         const ch = currentChannelByTab[tabs[0].id];
