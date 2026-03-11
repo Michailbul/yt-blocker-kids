@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YT Kids Guard</title>
+  <!-- Fonts loaded via @font-face in popup.css to avoid CSP issues -->
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <!-- ==================== KIDS VIEW ==================== -->
+  <div id="kids-view" class="view active">
+    <!-- Paper Header -->
+    <div class="paper-header">
+      <div class="tape tape-left"></div>
+      <div class="tape tape-right"></div>
+      <div class="header-doodles">
+        <span class="doodle star-1">★</span>
+        <span class="doodle star-2">✦</span>
+        <span class="doodle star-3">☆</span>
+      </div>
+      <h1 class="title">YT Kids Guard</h1>
+      <p class="subtitle-text">Your YouTube time buddy!</p>
+    </div>
+
+    <!-- Timer Circle -->
+    <div class="timer-section">
+      <div class="timer-ring-container">
+        <svg class="timer-ring" viewBox="0 0 180 180">
+          <defs>
+            <filter id="rough-edge">
+              <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="4" seed="2" />
+              <feDisplacementMap in="SourceGraphic" scale="1.5" />
+            </filter>
+          </defs>
+          <circle class="timer-bg" cx="90" cy="90" r="78" filter="url(#rough-edge)" />
+          <circle class="timer-progress" cx="90" cy="90" r="78"
+            stroke-dasharray="490"
+            stroke-dashoffset="0"
+            filter="url(#rough-edge)" />
+        </svg>
+        <div class="timer-inner">
+          <div class="timer-digits" id="timer-display">60:00</div>
+          <div class="timer-label" id="timer-label">minutes left!</div>
+        </div>
+      </div>
+      <div class="timer-status" id="timer-status">
+        <span class="status-emoji">🎬</span>
+        <span class="status-text" id="status-text">Happy watching!</span>
+      </div>
+    </div>
+
+    <!-- Current Channel -->
+    <div class="current-channel-bar" id="current-channel-bar" style="display:none;">
+      <span class="channel-icon">📺</span>
+      <span class="channel-name" id="current-channel-name">—</span>
+      <span class="channel-badge allowed" id="channel-badge">Allowed</span>
+    </div>
+
+    <!-- Parent Access Button -->
+    <button class="parent-access-btn" id="parent-access-btn">
+      <span class="lock-icon">🔒</span>
+      Parent Settings
+    </button>
+  </div>
+
+  <!-- ==================== PASSWORD MODAL ==================== -->
+  <div id="password-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card paper-card">
+      <div class="tape tape-center"></div>
+      <h2 class="modal-title" id="password-modal-title">Parent Access</h2>
+      <p class="modal-desc" id="password-modal-desc">Enter password to continue</p>
+      <div class="input-group">
+        <input type="password" id="password-input" class="paper-input"
+          placeholder="Enter password..." autocomplete="off">
+      </div>
+      <div class="modal-error hidden" id="password-error">Wrong password! Try again.</div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="password-cancel">Cancel</button>
+        <button class="btn btn-primary" id="password-submit">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FIRST-TIME SETUP MODAL ==================== -->
+  <div id="setup-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card paper-card">
+      <div class="tape tape-center"></div>
+      <h2 class="modal-title">Welcome! Set Up Parent Password</h2>
+      <p class="modal-desc">Create a password to protect the parent dashboard.</p>
+      <div class="input-group">
+        <input type="password" id="setup-password" class="paper-input"
+          placeholder="Create password..." autocomplete="off">
+      </div>
+      <div class="input-group">
+        <input type="password" id="setup-confirm" class="paper-input"
+          placeholder="Confirm password..." autocomplete="off">
+      </div>
+      <div class="modal-error hidden" id="setup-error">Passwords don't match!</div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" id="setup-cancel">Cancel</button>
+        <button class="btn btn-primary" id="setup-submit">Set Password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PARENT DASHBOARD ==================== -->
+  <div id="parent-view" class="view hidden">
+    <div class="parent-header">
+      <button class="back-btn" id="back-btn">
+        <span>←</span> Kids View
+      </button>
+      <h2 class="parent-title">Parent Dashboard</h2>
+      <div class="parent-toggle-row">
+        <label class="toggle-label">Extension</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="extension-toggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="parent-scroll">
+      <!-- Timer Settings -->
+      <section class="paper-section">
+        <h3 class="section-title">
+          <span class="section-icon">⏰</span>
+          Daily Watch Time
+        </h3>
+        <div class="timer-setting">
+          <div class="slider-row">
+            <input type="range" id="daily-limit" class="paper-range"
+              min="15" max="180" step="15" value="60">
+            <span class="slider-value" id="daily-limit-value">60 min</span>
+          </div>
+          <div class="timer-info">
+            <span class="used-time" id="used-time">Used: 0 min</span>
+            <span class="remaining-time" id="remaining-time">Left: 60 min</span>
+          </div>
+          <div class="timer-actions">
+            <button class="btn btn-small btn-outline" id="reset-timer-btn">Reset Timer</button>
+            <button class="btn btn-small btn-outline" id="add-time-btn">+15 min</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Actions -->
+      <section class="paper-section" id="quick-actions-section">
+        <h3 class="section-title">
+          <span class="section-icon">⚡</span>
+          Quick Actions
+        </h3>
+        <div class="quick-channel" id="quick-channel-info">
+          <p class="no-channel">Open a YouTube video to see channel actions here</p>
+        </div>
+      </section>
+
+      <!-- Mode Selection -->
+      <section class="paper-section">
+        <h3 class="section-title">
+          <span class="section-icon">🛡️</span>
+          Filter Mode
+        </h3>
+        <div class="mode-selector">
+          <label class="mode-option">
+            <input type="radio" name="filter-mode" value="whitelist" id="mode-whitelist">
+            <div class="mode-card">
+              <span class="mode-icon">✅</span>
+              <span class="mode-name">Whitelist</span>
+              <span class="mode-desc">Only allowed channels</span>
+            </div>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="filter-mode" value="blocklist" id="mode-blocklist">
+            <div class="mode-card">
+              <span class="mode-icon">🚫</span>
+              <span class="mode-name">Blocklist</span>
+              <span class="mode-desc">Block specific channels</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Shorts Blocking -->
+      <section class="paper-section">
+        <h3 class="section-title">
+          <span class="section-icon">📱</span>
+          Shorts
+        </h3>
+        <label class="checkbox-row">
+          <input type="checkbox" id="block-shorts" checked>
+          <span class="checkbox-custom"></span>
+          <span class="checkbox-label">Block YouTube Shorts</span>
+        </label>
+      </section>
+
+      <!-- Allowed Channels -->
+      <section class="paper-section" id="allowed-section">
+        <h3 class="section-title">
+          <span class="section-icon">✅</span>
+          Allowed Channels
+          <span class="channel-count" id="allowed-count">0</span>
+        </h3>
+        <div class="channel-list" id="allowed-channels-list">
+          <p class="empty-list">No channels added yet. Add channels your kids can watch!</p>
+        </div>
+        <div class="add-channel-row">
+          <input type="text" id="add-allowed-input" class="paper-input small"
+            placeholder="Channel name or @handle...">
+          <button class="btn btn-small btn-primary" id="add-allowed-btn">Add</button>
+        </div>
+      </section>
+
+      <!-- Blocked Channels -->
+      <section class="paper-section" id="blocked-section">
+        <h3 class="section-title">
+          <span class="section-icon">🚫</span>
+          Blocked Channels
+          <span class="channel-count" id="blocked-count">0</span>
+        </h3>
+        <div class="channel-list" id="blocked-channels-list">
+          <p class="empty-list">No channels blocked.</p>
+        </div>
+        <div class="add-channel-row">
+          <input type="text" id="add-blocked-input" class="paper-input small"
+            placeholder="Channel name or @handle...">
+          <button class="btn btn-small btn-danger" id="add-blocked-btn">Block</button>
+        </div>
+      </section>
+
+      <!-- Password -->
+      <section class="paper-section">
+        <h3 class="section-title">
+          <span class="section-icon">🔑</span>
+          Change Password
+        </h3>
+        <div class="password-change">
+          <input type="password" id="new-password" class="paper-input small"
+            placeholder="New password...">
+          <input type="password" id="confirm-password" class="paper-input small"
+            placeholder="Confirm password...">
+          <button class="btn btn-small btn-outline" id="change-password-btn">Update Password</button>
+          <div class="password-msg hidden" id="password-msg"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
