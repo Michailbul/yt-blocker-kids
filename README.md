@@ -4,6 +4,7 @@ Parental control Chrome extension for YouTube. Set watch timers, manage allowed 
 
 ![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-blue?logo=googlechrome)
 ![Manifest V3](https://img.shields.io/badge/Manifest-V3-green)
+![TypeScript](https://img.shields.io/badge/TypeScript-blue?logo=typescript&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ## Features
@@ -13,46 +14,53 @@ Parental control Chrome extension for YouTube. Set watch timers, manage allowed 
 - **Channel Blocklist** — Alternatively, block specific channels while allowing everything else.
 - **Block YouTube Shorts** — Completely hides Shorts from the feed and blocks Shorts URLs.
 - **One-Click Block/Allow** — See the current channel and block or allow it instantly.
+- **Thumbnail Channel Controls** — In parent mode, manage channels directly from YouTube thumbnails.
 - **Password-Protected Parent Dashboard** — All settings locked behind a parent password.
-- **Kid-Friendly Design** — Paper notebook aesthetic with crayon colors and playful animations.
+- **Warm Orange Design** — Clean, modern design with a warm orange palette.
 
 ## Installation
 
 ### From Source (Developer Mode)
 
-**Windows / Mac / Linux:**
+**Prerequisites:** Node.js 18+
 
-1. **Clone the repository:**
+1. **Clone and build:**
    ```bash
    git clone https://github.com/Michailbul/yt-blocker-kids.git
+   cd yt-blocker-kids
+   npm install
+   npm run build
    ```
 
-2. **Open Chrome Extensions page:**
+2. **Load in Chrome:**
    - Navigate to `chrome://extensions/`
-   - Or go to Menu → More Tools → Extensions
-
-3. **Enable Developer Mode:**
-   - Toggle the "Developer mode" switch in the top-right corner
-
-4. **Load the extension:**
+   - Enable "Developer mode" (top-right toggle)
    - Click "Load unpacked"
-   - Select the `yt-blocker-kids` folder you just cloned
+   - Select the `dist/` folder inside the cloned repo
 
-5. **Pin the extension:**
+3. **Pin the extension:**
    - Click the puzzle piece icon in Chrome's toolbar
    - Pin "YT Kids Guard" for easy access
 
 ### Windows Quick Install (PowerShell)
 
 ```powershell
-# Clone the repo
 git clone https://github.com/Michailbul/yt-blocker-kids.git "$env:USERPROFILE\yt-blocker-kids"
-
-# Open Chrome extensions page
+cd "$env:USERPROFILE\yt-blocker-kids"
+npm install
+npm run build
 Start-Process "chrome://extensions/"
 ```
 
-Then enable Developer Mode and click "Load unpacked" → select `C:\Users\<YourName>\yt-blocker-kids`.
+Then enable Developer Mode and click "Load unpacked" → select the `dist` folder.
+
+## Development
+
+```bash
+npm run watch    # Rebuild on file changes
+npm run typecheck # Run TypeScript type checking
+npm run clean    # Remove dist/
+```
 
 ## First-Time Setup
 
@@ -77,6 +85,7 @@ Then enable Developer Mode and click "Load unpacked" → select `C:\Users\<YourN
 - Password-protected dashboard with all controls
 - **Timer**: Set daily limit, reset timer, add extra time (+15 min)
 - **Channels**: Add channels by name or @handle, one-click block from any video
+- **Parent Mode**: Browse YouTube to block/allow channels directly on thumbnails
 - **Modes**: Whitelist (only approved channels) or Blocklist (block specific ones)
 - **Shorts**: Toggle YouTube Shorts blocking on/off
 - **Enable/Disable**: Turn the entire extension on/off
@@ -89,19 +98,29 @@ Then enable Developer Mode and click "Load unpacked" → select `C:\Users\<YourN
 - No data is sent to any external server — everything stays in Chrome's local storage
 - Fonts are bundled locally (no external CDN requests)
 
-## File Structure
+## Project Structure
 
 ```
 yt-blocker-kids/
-├── manifest.json       # Chrome extension manifest (MV3)
-├── background.js       # Service worker: timer, auth, channel management
-├── content.js          # YouTube page injection: blocking overlays
-├── content.css         # Minimal content script styles
-├── popup.html          # Extension popup markup
-├── popup.css           # Paper/crayon aesthetic styles
-├── popup.js            # Popup logic and UI
-├── fonts/              # Bundled Google Fonts (Patrick Hand, Bubblegum Sans, Caveat)
-└── icons/              # Extension icons (16, 48, 128px)
+├── src/
+│   ├── background.ts     # Service worker: timer, auth, channel management
+│   ├── content.ts        # YouTube page injection: blocking overlays, thumbnail controls
+│   ├── popup.ts          # Popup logic and UI
+│   └── types.ts          # Shared TypeScript interfaces
+├── static/
+│   ├── manifest.json     # Chrome extension manifest (MV3)
+│   ├── popup.html        # Extension popup markup
+│   ├── popup.css         # Warm orange design styles
+│   ├── content.css       # Minimal content script styles
+│   ├── fonts/            # Bundled fonts (Patrick Hand, Bubblegum Sans, Caveat)
+│   └── icons/            # Extension icons (16, 48, 128px)
+├── convex/
+│   └── schema.ts         # Convex schema scaffold (V2 — not connected yet)
+├── scripts/
+│   └── build.mjs         # esbuild build script
+├── dist/                 # Built extension (load this in Chrome)
+├── tsconfig.json
+└── package.json
 ```
 
 ## Privacy

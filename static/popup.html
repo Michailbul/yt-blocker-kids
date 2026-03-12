@@ -15,15 +15,8 @@
       <div class="brand">
         <div class="brand-icon">
           <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
-            <circle cx="12" cy="12" r="4" fill="white"/>
-            <line x1="12" y1="2" x2="12" y2="7" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="12" y1="17" x2="12" y2="22" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="2" y1="12" x2="7" y2="12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="17" y1="12" x2="22" y2="12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="4.93" y1="4.93" x2="8.46" y2="8.46" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="15.54" y1="15.54" x2="19.07" y2="19.07" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="4.93" y1="19.07" x2="8.46" y2="15.54" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-            <line x1="15.54" y1="8.46" x2="19.07" y2="4.93" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M12 3L5 6.5V10.5C5 14.64 8.01 18.47 12 19.5C15.99 18.47 19 14.64 19 10.5V6.5L12 3Z" fill="white" opacity="0.3" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M9 11L11 13L15.5 8.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
         <span class="brand-name">YT Kids Guard</span>
@@ -35,17 +28,17 @@
         <svg class="timer-svg" viewBox="0 0 200 200">
           <defs>
             <linearGradient id="timer-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#D4723C"/>
-              <stop offset="100%" stop-color="#E89460"/>
+              <stop offset="0%" stop-color="#B5A67A"/>
+              <stop offset="100%" stop-color="#C8BB96"/>
             </linearGradient>
             <linearGradient id="timer-bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#F5E6DA"/>
-              <stop offset="100%" stop-color="#F0DDD0"/>
+              <stop offset="0%" stop-color="#E8E2D8"/>
+              <stop offset="100%" stop-color="#DDD7CC"/>
             </linearGradient>
           </defs>
-          <circle cx="100" cy="100" r="88" fill="none" stroke="url(#timer-bg-grad)" stroke-width="12"/>
+          <circle cx="100" cy="100" r="88" fill="none" stroke="url(#timer-bg-grad)" stroke-width="10"/>
           <circle class="timer-progress" cx="100" cy="100" r="88"
-            fill="none" stroke="url(#timer-grad)" stroke-width="12"
+            fill="none" stroke="url(#timer-grad)" stroke-width="10"
             stroke-linecap="round"
             stroke-dasharray="553"
             stroke-dashoffset="0"
@@ -65,9 +58,9 @@
       <div class="current-channel" id="current-channel-bar" style="display:none">
         <div class="channel-info">
           <span class="channel-avatar">
-            <svg viewBox="0 0 16 16" width="16" height="16"><rect rx="4" width="16" height="16" fill="#D4723C" opacity="0.15"/><text x="8" y="12" text-anchor="middle" font-size="10" fill="#D4723C">TV</text></svg>
+            <svg viewBox="0 0 16 16" width="16" height="16"><rect rx="4" width="16" height="16" fill="#B5A67A" opacity="0.15"/><text x="8" y="12" text-anchor="middle" font-size="10" fill="#B5A67A">TV</text></svg>
           </span>
-          <span class="channel-text" id="current-channel-name">—</span>
+          <span class="channel-text" id="current-channel-name">&mdash;</span>
         </div>
         <span class="channel-badge" id="channel-badge">Allowed</span>
       </div>
@@ -87,14 +80,14 @@
     <div class="modal-bg"></div>
     <div class="modal-card">
       <div class="modal-icon">
-        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#D4723C" stroke-width="1.5" stroke-linecap="round">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#B5A67A" stroke-width="1.5" stroke-linecap="round">
           <rect x="5" y="11" width="14" height="10" rx="2"/>
           <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
-          <circle cx="12" cy="16" r="1.5" fill="#D4723C"/>
+          <circle cx="12" cy="16" r="1.5" fill="#B5A67A"/>
         </svg>
       </div>
       <h2 class="modal-title" id="password-modal-title">Parent Access</h2>
-      <p class="modal-desc" id="password-modal-desc">Enter your password to unlock settings</p>
+      <p class="modal-desc" id="password-modal-desc">enter your password to unlock settings</p>
       <input type="password" id="password-input" class="input" placeholder="Password" autocomplete="off">
       <div class="modal-error hidden" id="password-error">Wrong password! Try again.</div>
       <div class="modal-btns">
@@ -109,12 +102,12 @@
     <div class="modal-bg"></div>
     <div class="modal-card">
       <div class="modal-icon">
-        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#D4723C" stroke-width="1.5" stroke-linecap="round">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#B5A67A" stroke-width="1.5" stroke-linecap="round">
           <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
         </svg>
       </div>
       <h2 class="modal-title">Welcome!</h2>
-      <p class="modal-desc">Create a parent password to protect settings</p>
+      <p class="modal-desc">create a parent password to protect settings</p>
       <input type="password" id="setup-password" class="input" placeholder="Create password" autocomplete="off">
       <input type="password" id="setup-confirm" class="input" placeholder="Confirm password" autocomplete="off">
       <div class="modal-error hidden" id="setup-error">Passwords don't match!</div>
@@ -195,15 +188,6 @@
         </div>
       </div>
 
-      <!-- Parent Mode Banner -->
-      <div class="parent-mode-banner" id="parent-mode-banner">
-        <div class="banner-content">
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 8h14M8 1v14"/></svg>
-          <span>Browse YouTube to block/allow channels directly on thumbnails</span>
-        </div>
-        <button class="btn btn-small btn-primary" id="activate-parent-mode">Activate</button>
-      </div>
-
       <!-- Mode Selection -->
       <div class="card">
         <div class="card-header">
@@ -212,13 +196,14 @@
         <div class="mode-toggle">
           <button class="mode-btn active" id="mode-whitelist-btn" data-mode="whitelist">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13.5 4.5L6 12L2.5 8.5"/></svg>
-            Whitelist
+            Allow Only
           </button>
           <button class="mode-btn" id="mode-blocklist-btn" data-mode="blocklist">
             <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>
-            Blocklist
+            Block Specific
           </button>
         </div>
+        <p class="muted-text" id="mode-desc" style="margin-top:6px;font-size:11px"></p>
       </div>
 
       <!-- Allowed Channels -->
@@ -231,7 +216,7 @@
           <p class="muted-text">No channels added yet</p>
         </div>
         <div class="add-row">
-          <input type="text" id="add-allowed-input" class="input input-sm" placeholder="Channel name or @handle">
+          <input type="text" id="add-allowed-input" class="input input-sm" placeholder="Name, @handle, or video URL">
           <button class="btn btn-small btn-primary" id="add-allowed-btn">Add</button>
         </div>
       </div>
@@ -246,7 +231,7 @@
           <p class="muted-text">No channels blocked</p>
         </div>
         <div class="add-row">
-          <input type="text" id="add-blocked-input" class="input input-sm" placeholder="Channel name or @handle">
+          <input type="text" id="add-blocked-input" class="input input-sm" placeholder="Name, @handle, or video URL">
           <button class="btn btn-small btn-danger" id="add-blocked-btn">Block</button>
         </div>
       </div>
@@ -274,6 +259,26 @@
         <input type="password" id="confirm-password" class="input input-sm" placeholder="Confirm password" style="margin-top:8px">
         <button class="btn btn-outline btn-small" id="change-password-btn" style="margin-top:8px;width:100%">Update Password</button>
         <div class="modal-error hidden" id="password-msg" style="margin-top:6px"></div>
+      </div>
+
+      <div class="card" id="cloud-sync-card">
+        <div class="card-header"><span class="card-title">Cloud Sync</span></div>
+        <div id="sync-disconnected">
+          <p class="muted-text" style="margin-bottom:8px">Connect to a family to sync settings across devices</p>
+          <input type="text" id="join-code-input" class="input input-sm" placeholder="6-character join code" maxlength="6" style="text-transform:uppercase">
+          <input type="text" id="device-name-input" class="input input-sm" placeholder="Device name (e.g. Kid's Laptop)" style="margin-top:6px">
+          <button class="btn btn-primary btn-small" id="connect-btn" style="margin-top:8px;width:100%">Connect</button>
+          <div class="modal-error hidden" id="sync-error" style="margin-top:6px"></div>
+        </div>
+        <div id="sync-connected" style="display:none">
+          <div class="setting-row" style="padding:0">
+            <div class="setting-info">
+              <span class="setting-name" id="sync-family-name">—</span>
+              <span class="setting-desc" id="sync-status-text">Connected</span>
+            </div>
+            <span class="channel-badge allowed" id="sync-badge">Synced</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>

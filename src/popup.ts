@@ -2,26 +2,28 @@
 // YT Kids Guard — Popup Logic (v2)
 // ============================================================
 
-let state = null;
+import type { FullState, Channel, PasswordResult } from './types';
+
+let state: FullState | null = null;
 let isParentAuthenticated = false;
 let parentSessionToken = '';
-let timerInterval = null;
+let timerInterval: ReturnType<typeof setInterval> | null = null;
 
 // ---------- Crypto ----------
-async function hashPassword(password) {
+async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + 'yt-kids-guard-salt-2024');
   const hash = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function sendAuth(msg) {
+function sendAuth(msg: object): Promise<unknown> {
   return chrome.runtime.sendMessage({ ...msg, sessionToken: parentSessionToken });
 }
 
 // ---------- DOM ----------
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => document.querySelectorAll(s);
+const $ = (s: string): HTMLElement => document.querySelector(s)!;
+const $$ = (s: string): NodeListOf<HTMLElement> => document.querySelectorAll(s);
 
 // ---------- Init ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -34,9 +36,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.addEventListener('unload', () => { if (timerInterval) clearInterval(timerInterval); });
 
 // ---------- State ----------
-async function refreshState() {
+async function refreshState(): Promise<void> {
   try {
-    state = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
+    state = await chrome.runtime.sendMessage({ type: 'GET_STATE' }) as FullState;
     render();
   } catch (e) { console.error('State error:', e); }
 }
@@ -46,7 +48,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 // ---------- Render ----------
-function render() {
+function render(): void {
   if (!state) return;
 
   const remaining = state.remainingSeconds;
@@ -54,60 +56,63 @@ function render() {
   const fraction = total > 0 ? remaining / total : 1;
 
   // Timer digits
+  const timerDisplay = $('#timer-display');
+  const timerLabel = $('#timer-label');
   if (remaining <= 0) {
-    $('#timer-display').textContent = "Time's Up!";
-    $('#timer-display').classList.add('times-up');
-    $('#timer-label').textContent = 'see you tomorrow';
+    timerDisplay.textContent = "Time's Up!";
+    timerDisplay.classList.add('times-up');
+    timerLabel.textContent = 'see you tomorrow';
   } else {
     const m = Math.floor(remaining / 60);
     const s = remaining % 60;
-    $('#timer-display').textContent = `${m}:${String(s).padStart(2, '0')}`;
-    $('#timer-display').classList.remove('times-up');
-    $('#timer-label').textContent = 'minutes left';
+    timerDisplay.textContent = `${m}:${String(s).padStart(2, '0')}`;
+    timerDisplay.classList.remove('times-up');
+    timerLabel.textContent = 'minutes left';
   }
 
   // Ring progress
-  const circumference = 2 * Math.PI * 88; // ~553
+  const circumference = 2 * Math.PI * 88;
   const offset = circumference * (1 - fraction);
-  document.querySelector('.timer-progress').style.strokeDashoffset = offset;
+  (document.querySelector('.timer-progress') as SVGElement).style.strokeDashoffset = String(offset);
 
   // Update gradient colors based on time
-  const grad = document.querySelector('#timer-grad');
+  const grad = document.querySelector('#timer-grad')!;
   const statusEl = $('#timer-status');
   statusEl.classList.remove('warning', 'danger');
 
   if (remaining <= 0) {
-    grad.children[0].setAttribute('stop-color', '#E25555');
-    grad.children[1].setAttribute('stop-color', '#F08080');
+    grad.children[0].setAttribute('stop-color', '#C47070');
+    grad.children[1].setAttribute('stop-color', '#D09090');
     statusEl.classList.add('danger');
     $('#status-text').textContent = "Time's up! Go play!";
   } else if (remaining < 300) {
-    grad.children[0].setAttribute('stop-color', '#E25555');
-    grad.children[1].setAttribute('stop-color', '#F08080');
+    grad.children[0].setAttribute('stop-color', '#C47070');
+    grad.children[1].setAttribute('stop-color', '#D09090');
     statusEl.classList.add('danger');
     $('#status-text').textContent = 'Almost done!';
   } else if (remaining < 600) {
-    grad.children[0].setAttribute('stop-color', '#E8945A');
-    grad.children[1].setAttribute('stop-color', '#F0A06A');
+    grad.children[0].setAttribute('stop-color', '#C4A870');
+    grad.children[1].setAttribute('stop-color', '#D0B880');
     statusEl.classList.add('warning');
     $('#status-text').textContent = 'Running low...';
   } else {
-    grad.children[0].setAttribute('stop-color', '#D4723C');
-    grad.children[1].setAttribute('stop-color', '#E89460');
+    grad.children[0].setAttribute('stop-color', '#B5A67A');
+    grad.children[1].setAttribute('stop-color', '#C8BB96');
     $('#status-text').textContent = 'Watching time active';
   }
 
   if (isParentAuthenticated) renderParent();
 }
 
-function renderParent() {
+function renderParent(): void {
   if (!state) return;
   const s = state.settings;
 
   // Timer tab
-  $('#daily-limit').value = s.dailyLimitMinutes;
+  const limitSlider = $('#daily-limit') as HTMLInputElement;
+  limitSlider.value = String(s.dailyLimitMinutes);
   $('#daily-limit-value').textContent = `${s.dailyLimitMinutes} min`;
-  updateRangeStyle($('#daily-limit'));
+  updateRangeStyle(limitSlider);
 
   const usedMins = Math.floor(state.watchData.secondsUsed / 60);
   const remainMins = Math.max(0, s.dailyLimitMinutes - usedMins);
@@ -119,22 +124,28 @@ function renderParent() {
   bar.classList.toggle('danger', usedPct > 85);
 
   // Settings
-  $('#extension-toggle').checked = s.extensionEnabled;
-  $('#block-shorts').checked = s.blockShorts;
+  ($('#extension-toggle') as HTMLInputElement).checked = s.extensionEnabled;
+  ($('#block-shorts') as HTMLInputElement).checked = s.blockShorts;
 
   // Mode
   $$('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === s.filterMode));
   $('#allowed-section').style.display = s.filterMode === 'whitelist' ? 'block' : 'none';
   $('#blocked-section').style.display = s.filterMode === 'blocklist' ? 'block' : 'none';
+  const modeDesc = $('#mode-desc');
+  if (modeDesc) {
+    modeDesc.textContent = s.filterMode === 'whitelist'
+      ? 'Only approved channels can be watched'
+      : 'Everything allowed except blocked channels';
+  }
 
   // Channel lists
   renderChannelList($('#allowed-channels-list'), s.allowedChannels, 'allowed');
   renderChannelList($('#blocked-channels-list'), s.blockedChannels, 'blocked');
-  $('#allowed-count').textContent = s.allowedChannels.length;
-  $('#blocked-count').textContent = s.blockedChannels.length;
+  $('#allowed-count').textContent = String(s.allowedChannels.length);
+  $('#blocked-count').textContent = String(s.blockedChannels.length);
 }
 
-function renderChannelList(container, channels, type) {
+function renderChannelList(container: HTMLElement, channels: Array<{ name: string; handle?: string }>, type: 'allowed' | 'blocked'): void {
   if (channels.length === 0) {
     container.innerHTML = `<p class="muted-text">${type === 'allowed' ? 'No channels added yet' : 'No channels blocked'}</p>`;
     return;
@@ -149,22 +160,24 @@ function renderChannelList(container, channels, type) {
   `).join('');
 
   container.querySelectorAll('.channel-remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const name = btn.dataset.name;
-      const msgType = btn.dataset.type === 'allowed' ? 'REMOVE_ALLOWED_CHANNEL' : 'UNBLOCK_CHANNEL';
-      sendAuth({ type: msgType, channelName: name });
+    btn.addEventListener('click', async () => {
+      const el = btn as HTMLElement;
+      const name = el.dataset.name!;
+      const msgType = el.dataset.type === 'allowed' ? 'REMOVE_ALLOWED_CHANNEL' : 'UNBLOCK_CHANNEL';
+      await sendAuth({ type: msgType, channelName: name });
       toast(`Removed ${name}`);
+      await refreshState();
     });
   });
 }
 
-function updateRangeStyle(el) {
-  const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
+function updateRangeStyle(el: HTMLInputElement): void {
+  const pct = ((Number(el.value) - Number(el.min)) / (Number(el.max) - Number(el.min))) * 100;
   el.style.setProperty('--pct', pct + '%');
 }
 
 // ---------- Channel Detection ----------
-async function detectCurrentChannel() {
+async function detectCurrentChannel(): Promise<void> {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab || !tab.url || !tab.url.includes('youtube.com')) {
@@ -172,14 +185,14 @@ async function detectCurrentChannel() {
       return;
     }
 
-    if (state?.currentChannelByTab?.[tab.id]?.name) {
+    if (tab.id != null && state?.currentChannelByTab?.[tab.id]?.name) {
       showChannel(state.currentChannelByTab[tab.id]);
       return;
     }
 
     try {
       const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
+        target: { tabId: tab.id! },
         func: () => {
           for (const sel of [
             'ytd-video-owner-renderer #channel-name a',
@@ -187,25 +200,25 @@ async function detectCurrentChannel() {
             '#owner #channel-name a',
             'ytd-channel-name yt-formatted-string a',
           ]) {
-            const el = document.querySelector(sel);
-            if (el) return { name: el.textContent.trim(), url: el.href || '' };
+            const el = document.querySelector(sel) as HTMLAnchorElement | null;
+            if (el) return { name: el.textContent?.trim() || '', url: el.href || '' };
           }
           return null;
         },
       });
-      if (results?.[0]?.result) showChannel(results[0].result);
+      if (results?.[0]?.result) showChannel(results[0].result as Channel);
       else $('#current-channel-bar').style.display = 'none';
     } catch { $('#current-channel-bar').style.display = 'none'; }
   } catch { $('#current-channel-bar').style.display = 'none'; }
 }
 
-function showChannel(ch) {
+function showChannel(ch: { name: string; url?: string; handle?: string }): void {
   $('#current-channel-bar').style.display = 'flex';
   $('#current-channel-name').textContent = ch.name || 'Unknown';
 
   if (state?.settings) {
     const s = state.settings;
-    const n = (v) => (v || '').toLowerCase().trim();
+    const n = (v: string) => (v || '').toLowerCase().trim();
     const isAllowed = s.allowedChannels.some(c => n(c.name) === n(ch.name));
     const isBlocked = s.blockedChannels.some(c => n(c.name) === n(ch.name));
 
@@ -215,10 +228,10 @@ function showChannel(ch) {
     else { badge.textContent = 'Not Listed'; badge.className = 'channel-badge blocked'; }
   }
 
-  renderQuickActions(ch);
+  renderQuickActions(ch as Channel);
 }
 
-function renderQuickActions(ch) {
+function renderQuickActions(ch: Channel | null): void {
   const el = $('#quick-channel-info');
   if (!ch?.name) {
     el.innerHTML = '<p class="muted-text">Open a YouTube video to manage channels</p>';
@@ -250,10 +263,10 @@ function renderQuickActions(ch) {
 }
 
 // ---------- Timer Loop ----------
-function startTimerUpdate() {
+function startTimerUpdate(): void {
   timerInterval = setInterval(async () => {
     try {
-      const r = await chrome.runtime.sendMessage({ type: 'CHECK_STATUS' });
+      const r = await chrome.runtime.sendMessage({ type: 'CHECK_STATUS' }) as { remainingSeconds: number; isTimeUp: boolean } | undefined;
       if (r && state) {
         state.remainingSeconds = r.remainingSeconds;
         state.isTimeUp = r.isTimeUp;
@@ -264,7 +277,7 @@ function startTimerUpdate() {
 }
 
 // ---------- Events ----------
-function bindEvents() {
+function bindEvents(): void {
   // Parent access
   $('#parent-access-btn').addEventListener('click', () => {
     if (!state || !state.hasPassword) showSetupModal();
@@ -274,19 +287,18 @@ function bindEvents() {
   // Password modal
   $('#password-cancel').addEventListener('click', hideModals);
   $('#password-submit').addEventListener('click', submitPassword);
-  $('#password-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitPassword(); });
+  ($('#password-input') as HTMLInputElement).addEventListener('keydown', e => { if (e.key === 'Enter') submitPassword(); });
 
   // Setup modal
   $('#setup-cancel').addEventListener('click', hideModals);
   $('#setup-submit').addEventListener('click', submitSetup);
-  $('#setup-confirm').addEventListener('keydown', e => { if (e.key === 'Enter') submitSetup(); });
+  ($('#setup-confirm') as HTMLInputElement).addEventListener('keydown', e => { if (e.key === 'Enter') submitSetup(); });
 
   // Back
   $('#back-btn').addEventListener('click', () => {
     isParentAuthenticated = false;
     parentSessionToken = '';
-    // Deactivate parent mode
-    chrome.storage.local.set({ parentModeUntil: 0 });
+    chrome.storage.local.set({ contentAuthUntil: 0 });
     switchView('kids');
   });
 
@@ -301,7 +313,7 @@ function bindEvents() {
   });
 
   // Range slider
-  const range = $('#daily-limit');
+  const range = $('#daily-limit') as HTMLInputElement;
   range.addEventListener('input', () => {
     $('#daily-limit-value').textContent = `${range.value} min`;
     updateRangeStyle(range);
@@ -311,10 +323,10 @@ function bindEvents() {
   });
 
   // Toggle switches
-  $('#extension-toggle').addEventListener('change', function() {
+  ($('#extension-toggle') as HTMLInputElement).addEventListener('change', function() {
     sendAuth({ type: 'UPDATE_SETTINGS', extensionEnabled: this.checked });
   });
-  $('#block-shorts').addEventListener('change', function() {
+  ($('#block-shorts') as HTMLInputElement).addEventListener('change', function() {
     sendAuth({ type: 'UPDATE_SETTINGS', blockShorts: this.checked });
   });
 
@@ -341,84 +353,125 @@ function bindEvents() {
   bindAddChannel('add-allowed-input', 'add-allowed-btn', 'ADD_ALLOWED_CHANNEL', 'Added');
   bindAddChannel('add-blocked-input', 'add-blocked-btn', 'BLOCK_CHANNEL', 'Blocked');
 
-  // Parent mode (browse YouTube to manage channels on thumbnails)
-  $('#activate-parent-mode').addEventListener('click', async () => {
-    const until = Date.now() + 30 * 60 * 1000; // 30 minutes
-    await chrome.storage.local.set({ parentModeUntil: until });
-    // Notify all YouTube tabs
-    const tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
-    for (const tab of tabs) {
-      try { await chrome.tabs.sendMessage(tab.id, { type: 'PARENT_MODE_ACTIVATED' }); } catch {}
+  // Cloud sync
+  $('#connect-btn')?.addEventListener('click', async () => {
+    const joinCode = ($('#join-code-input') as HTMLInputElement).value.trim().toUpperCase();
+    const deviceName = ($('#device-name-input') as HTMLInputElement).value.trim();
+    const errEl = $('#sync-error');
+    if (!joinCode || joinCode.length !== 6) { errEl.textContent = 'Enter a 6-character code'; errEl.classList.remove('hidden'); return; }
+    if (!deviceName) { errEl.textContent = 'Enter a device name'; errEl.classList.remove('hidden'); return; }
+    errEl.classList.add('hidden');
+    try {
+      const r = await sendAuth({ type: 'REGISTER_DEVICE', joinCode, deviceName }) as { success: boolean; familyName?: string; error?: string };
+      if (r?.success) {
+        toast('Connected to family!');
+        renderSyncStatus();
+      } else {
+        errEl.textContent = r?.error || 'Failed to connect';
+        errEl.classList.remove('hidden');
+      }
+    } catch {
+      errEl.textContent = 'Connection failed';
+      errEl.classList.remove('hidden');
     }
-    toast('Parent mode active for 30 min. Browse YouTube to manage channels.');
   });
+
+  renderSyncStatus();
 
   // Change password
   $('#change-password-btn').addEventListener('click', async () => {
-    const pw = $('#new-password').value;
-    const confirm = $('#confirm-password').value;
+    const pw = ($('#new-password') as HTMLInputElement).value;
+    const confirm = ($('#confirm-password') as HTMLInputElement).value;
     const msg = $('#password-msg');
 
     if (!pw || pw.length < 4) { showMsg(msg, 'Password must be at least 4 characters', 'error'); return; }
     if (pw !== confirm) { showMsg(msg, "Passwords don't match", 'error'); return; }
 
     const hash = await hashPassword(pw);
-    const r = await sendAuth({ type: 'SET_PASSWORD', passwordHash: hash });
+    const r = await sendAuth({ type: 'SET_PASSWORD', passwordHash: hash }) as { success: boolean; sessionToken?: string } | undefined;
     if (r?.success) {
-      parentSessionToken = r.sessionToken;
+      parentSessionToken = r.sessionToken || '';
       showMsg(msg, 'Password updated!', 'success');
     } else {
       showMsg(msg, 'Failed to update', 'error');
     }
-    $('#new-password').value = '';
-    $('#confirm-password').value = '';
+    ($('#new-password') as HTMLInputElement).value = '';
+    ($('#confirm-password') as HTMLInputElement).value = '';
   });
 }
 
-function bindAddChannel(inputId, btnId, msgType, verb) {
+function isYouTubeVideoUrl(s: string): boolean {
+  return /^https?:\/\/(www\.)?(youtube\.com\/watch|youtu\.be\/)/.test(s);
+}
+
+function bindAddChannel(inputId: string, btnId: string, msgType: string, verb: string): void {
   const btn = $(`#${btnId}`);
-  const input = $(`#${inputId}`);
-  const action = () => {
-    const name = input.value.trim();
-    if (!name) return;
-    sendAuth({ type: msgType, channel: { name, handle: name.startsWith('@') ? name : '' } });
-    input.value = '';
-    toast(`${verb}: ${name}`);
+  const input = $(`#${inputId}`) as HTMLInputElement;
+  const action = async () => {
+    const value = input.value.trim();
+    if (!value) return;
+
+    if (isYouTubeVideoUrl(value)) {
+      btn.setAttribute('disabled', '');
+      btn.textContent = '...';
+      try {
+        const r = await chrome.runtime.sendMessage({ type: 'RESOLVE_VIDEO_URL', videoUrl: value }) as
+          { success: boolean; channel?: { name: string; url: string; handle: string }; error?: string };
+        if (r?.success && r.channel) {
+          await sendAuth({ type: msgType, channel: r.channel });
+          input.value = '';
+          toast(`${verb}: ${r.channel.name}`);
+          await refreshState();
+        } else {
+          toast(r?.error || 'Could not resolve channel');
+        }
+      } catch {
+        toast('Failed to resolve video URL');
+      }
+      btn.removeAttribute('disabled');
+      btn.textContent = verb === 'Added' ? 'Add' : 'Block';
+    } else {
+      const name = value;
+      await sendAuth({ type: msgType, channel: { name, url: '', handle: name.startsWith('@') ? name : '' } });
+      input.value = '';
+      toast(`${verb}: ${name}`);
+      await refreshState();
+    }
   };
   btn.addEventListener('click', action);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') action(); });
 }
 
 // ---------- Password ----------
-function showPasswordModal() {
+function showPasswordModal(): void {
   $('#password-modal').classList.remove('hidden');
   $('#password-error').classList.add('hidden');
-  $('#password-input').value = '';
-  setTimeout(() => $('#password-input').focus(), 100);
+  ($('#password-input') as HTMLInputElement).value = '';
+  setTimeout(() => ($('#password-input') as HTMLInputElement).focus(), 100);
 }
 
-function showSetupModal() {
+function showSetupModal(): void {
   $('#setup-modal').classList.remove('hidden');
   $('#setup-error').classList.add('hidden');
-  $('#setup-password').value = '';
-  $('#setup-confirm').value = '';
-  setTimeout(() => $('#setup-password').focus(), 100);
+  ($('#setup-password') as HTMLInputElement).value = '';
+  ($('#setup-confirm') as HTMLInputElement).value = '';
+  setTimeout(() => ($('#setup-password') as HTMLInputElement).focus(), 100);
 }
 
-function hideModals() {
+function hideModals(): void {
   $('#password-modal').classList.add('hidden');
   $('#setup-modal').classList.add('hidden');
 }
 
-async function submitPassword() {
-  const pw = $('#password-input').value;
+async function submitPassword(): Promise<void> {
+  const pw = ($('#password-input') as HTMLInputElement).value;
   if (!pw) return;
   const hash = await hashPassword(pw);
-  const r = await chrome.runtime.sendMessage({ type: 'VERIFY_PASSWORD', passwordHash: hash });
+  const r = await chrome.runtime.sendMessage({ type: 'VERIFY_PASSWORD', passwordHash: hash }) as PasswordResult;
 
   if (r.success) {
     isParentAuthenticated = true;
-    parentSessionToken = r.sessionToken;
+    parentSessionToken = r.sessionToken || '';
     hideModals();
     switchView('parent');
     await refreshState();
@@ -426,25 +479,25 @@ async function submitPassword() {
   } else if (r.locked) {
     $('#password-error').textContent = `Locked for ${r.retryAfter}s. Too many attempts.`;
     $('#password-error').classList.remove('hidden');
-    $('#password-input').value = '';
+    ($('#password-input') as HTMLInputElement).value = '';
   } else {
     $('#password-error').textContent = r.attemptsLeft ? `Wrong password. ${r.attemptsLeft} attempts left.` : 'Wrong password.';
     $('#password-error').classList.remove('hidden');
-    $('#password-input').value = '';
-    $('#password-input').focus();
+    ($('#password-input') as HTMLInputElement).value = '';
+    ($('#password-input') as HTMLInputElement).focus();
   }
 }
 
-async function submitSetup() {
-  const pw = $('#setup-password').value;
-  const confirm = $('#setup-confirm').value;
+async function submitSetup(): Promise<void> {
+  const pw = ($('#setup-password') as HTMLInputElement).value;
+  const confirm = ($('#setup-confirm') as HTMLInputElement).value;
   if (!pw || pw.length < 4) { $('#setup-error').textContent = 'Min 4 characters'; $('#setup-error').classList.remove('hidden'); return; }
   if (pw !== confirm) { $('#setup-error').textContent = "Passwords don't match"; $('#setup-error').classList.remove('hidden'); return; }
 
   const hash = await hashPassword(pw);
-  const r = await chrome.runtime.sendMessage({ type: 'SET_PASSWORD', passwordHash: hash });
+  const r = await chrome.runtime.sendMessage({ type: 'SET_PASSWORD', passwordHash: hash }) as { success: boolean; sessionToken?: string } | undefined;
   if (r?.success) {
-    parentSessionToken = r.sessionToken;
+    parentSessionToken = r.sessionToken || '';
     isParentAuthenticated = true;
     hideModals();
     switchView('parent');
@@ -454,7 +507,7 @@ async function submitSetup() {
   }
 }
 
-function switchView(view) {
+function switchView(view: 'kids' | 'parent'): void {
   $('#kids-view').classList.toggle('active', view === 'kids');
   $('#kids-view').classList.toggle('hidden', view !== 'kids');
   $('#parent-view').classList.toggle('active', view === 'parent');
@@ -462,10 +515,17 @@ function switchView(view) {
 }
 
 // ---------- Helpers ----------
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-function escAttr(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function esc(s: string): string {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
 
-function showMsg(el, text, type) {
+function escAttr(s: string): string {
+  return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function showMsg(el: HTMLElement, text: string, type: 'success' | 'error'): void {
   el.textContent = text;
   el.className = 'modal-error' + (type === 'success' ? ' success' : '');
   el.style.color = type === 'success' ? 'var(--green)' : 'var(--red)';
@@ -473,7 +533,25 @@ function showMsg(el, text, type) {
   setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
-function toast(message) {
+async function renderSyncStatus(): Promise<void> {
+  try {
+    const r = await chrome.runtime.sendMessage({ type: 'GET_SYNC_STATUS' }) as
+      { connected: boolean; familyName?: string; lastSync?: number } | undefined;
+    if (r?.connected) {
+      $('#sync-disconnected').style.display = 'none';
+      $('#sync-connected').style.display = 'block';
+      $('#sync-family-name').textContent = r.familyName || 'Family';
+      $('#sync-status-text').textContent = r.lastSync
+        ? `Last synced ${Math.round((Date.now() - r.lastSync) / 60000)}m ago`
+        : 'Connected';
+    } else {
+      $('#sync-disconnected').style.display = 'block';
+      $('#sync-connected').style.display = 'none';
+    }
+  } catch {}
+}
+
+function toast(message: string): void {
   const container = $('#toast-container');
   const el = document.createElement('div');
   el.className = 'toast';

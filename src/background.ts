@@ -2,22 +2,34 @@
 // YT Kids Guard — Background Service Worker
 // ============================================================
 
+import type {
+  Settings,
+  WatchData,
+  Channel,
+  FullState,
+  PasswordResult,
+  ReportChannelResponse,
+  CheckStatusResponse,
+  HeartbeatResponse,
+  FilterMode,
+} from './types';
+
 // ---------- Default Settings ----------
-const DEFAULTS = {
-  parentPasswordHash: '',       // SHA-256 hash; empty = first-time setup
+const DEFAULTS: Settings = {
+  parentPasswordHash: '',
   dailyLimitMinutes: 60,
-  allowedChannels: [],          // [{ name, url, id?, addedAt }]
-  blockedChannels: [],          // [{ name, url, id?, blockedAt }]
+  allowedChannels: [],
+  blockedChannels: [],
   blockShorts: true,
-  filterMode: 'whitelist',      // 'whitelist' | 'blocklist'
+  filterMode: 'whitelist',
   extensionEnabled: true,
 };
 
 // ---------- Runtime State ----------
-let settings = { ...DEFAULTS };
-let watchData = { date: '', secondsUsed: 0 };
-let currentChannelByTab = {};   // tabId → { name, url, handle }
-let sessionToken = '';          // Auth token for parent session (in-memory only)
+let settings: Settings = { ...DEFAULTS };
+let watchData: WatchData = { date: '', secondsUsed: 0 };
+let currentChannelByTab: Record<number, Channel> = {};
+let sessionToken = '';
 let failedPasswordAttempts = 0;
 let lockoutUntil = 0;
 
@@ -27,6 +39,7 @@ chrome.runtime.onInstalled.addListener(() => {
   loadWatchData();
   chrome.alarms.create('watch-timer', { periodInMinutes: 1 });
   chrome.alarms.create('daily-reset-check', { periodInMinutes: 5 });
+  chrome.alarms.create('convex-sync', { periodInMinutes: 2 });
 });
 
 chrome.runtime.onStartup.addListener(() => {
@@ -34,10 +47,11 @@ chrome.runtime.onStartup.addListener(() => {
   loadWatchData();
   chrome.alarms.create('watch-timer', { periodInMinutes: 1 });
   chrome.alarms.create('daily-reset-check', { periodInMinutes: 5 });
+  chrome.alarms.create('convex-sync', { periodInMinutes: 2 });
 });
 
 // ---------- Storage ----------
-async function loadSettings() {
+async function loadSettings(): Promise<void> {
   const data = await chrome.storage.sync.get(null);
   settings = {
     parentPasswordHash: data.parentPasswordHash || DEFAULTS.parentPasswordHash,
@@ -50,7 +64,7 @@ async function loadSettings() {
   };
 }
 
-async function saveSettings() {
+async function saveSettings(): Promise<void> {
   await chrome.storage.sync.set({
     parentPasswordHash: settings.parentPasswordHash,
     dailyLimitMinutes: settings.dailyLimitMinutes,
@@ -62,7 +76,7 @@ async function saveSettings() {
   });
 }
 
-async function loadWatchData() {
+async function loadWatchData(): Promise<void> {
   const data = await chrome.storage.local.get(['watchData']);
   const today = getToday();
   if (data.watchData && data.watchData.date === today) {
@@ -73,11 +87,11 @@ async function loadWatchData() {
   }
 }
 
-async function saveWatchData() {
+async function saveWatchData(): Promise<void> {
   await chrome.storage.local.set({ watchData });
 }
 
-function getToday() {
+function getToday(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -90,32 +104,36 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'daily-reset-check') {
     await checkDailyReset();
   }
+  if (alarm.name === 'convex-sync') {
+    try {
+      const { pullFromConvex, pushToConvex } = await import('./convex-sync');
+      await pullFromConvex();
+      await pushToConvex(watchData);
+    } catch {}
+  }
 });
 
-async function handleTimerTick() {
+async function handleTimerTick(): Promise<void> {
   await loadSettings();
   if (!settings.extensionEnabled) return;
 
   await loadWatchData();
 
-  // Check if any YouTube tab is active in focused window
   const active = await isYouTubeTabActive();
   if (active) {
-    watchData.secondsUsed += 60; // add 1 minute
+    watchData.secondsUsed += 60;
     await saveWatchData();
 
-    // Check if time is up
     if (isTimeUp()) {
       await blockAllYouTubeTabs();
     }
   }
 
-  // Update badge
   updateBadge();
   broadcastState();
 }
 
-async function checkDailyReset() {
+async function checkDailyReset(): Promise<void> {
   const today = getToday();
   if (watchData.date !== today) {
     watchData = { date: today, secondsUsed: 0 };
@@ -126,28 +144,28 @@ async function checkDailyReset() {
   }
 }
 
-function isTimeUp() {
+function isTimeUp(): boolean {
   return watchData.secondsUsed >= settings.dailyLimitMinutes * 60;
 }
 
-function getRemainingSeconds() {
+function getRemainingSeconds(): number {
   const remaining = (settings.dailyLimitMinutes * 60) - watchData.secondsUsed;
   return Math.max(0, remaining);
 }
 
-async function isYouTubeTabActive() {
+async function isYouTubeTabActive(): Promise<boolean> {
   try {
     const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     if (tabs.length === 0) return false;
     const tab = tabs[0];
-    return tab.url && (tab.url.includes('youtube.com') || tab.url.includes('youtu.be'));
+    return !!(tab.url && (tab.url.includes('youtube.com') || tab.url.includes('youtu.be')));
   } catch {
     return false;
   }
 }
 
 // ---------- Badge ----------
-function updateBadge() {
+function updateBadge(): void {
   if (!settings.extensionEnabled) {
     chrome.action.setBadgeText({ text: 'OFF' });
     chrome.action.setBadgeBackgroundColor({ color: '#999' });
@@ -172,52 +190,56 @@ function updateBadge() {
 }
 
 // ---------- Blocking ----------
-async function blockAllYouTubeTabs() {
+async function blockAllYouTubeTabs(): Promise<void> {
   const tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
   for (const tab of tabs) {
     try {
-      await chrome.tabs.sendMessage(tab.id, { type: 'BLOCK', reason: 'time_up' });
+      if (tab.id != null) {
+        await chrome.tabs.sendMessage(tab.id, { type: 'BLOCK', reason: 'time_up' });
+      }
     } catch {
       // Tab might not have content script yet
     }
   }
 }
 
-async function unblockAllYouTubeTabs() {
+async function unblockAllYouTubeTabs(): Promise<void> {
   const tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
   for (const tab of tabs) {
     try {
-      await chrome.tabs.sendMessage(tab.id, { type: 'UNBLOCK' });
+      if (tab.id != null) {
+        await chrome.tabs.sendMessage(tab.id, { type: 'UNBLOCK' });
+      }
     } catch {}
   }
 }
 
 // ---------- Channel Management ----------
-function isChannelAllowed(channelName, channelUrl, channelHandle) {
-  if (!settings.extensionEnabled) return true;
-  if (!channelName && !channelUrl && !channelHandle) return true; // Can't determine channel
+function normalize(s: string): string {
+  return (s || '').toLowerCase().trim();
+}
 
-  const normalize = (s) => (s || '').toLowerCase().trim();
+function isChannelAllowed(channelName: string, channelUrl: string, channelHandle: string): boolean {
+  if (!settings.extensionEnabled) return true;
+  if (!channelName && !channelUrl && !channelHandle) return true;
 
   if (settings.filterMode === 'whitelist') {
-    // In whitelist mode, only allowed channels pass
-    if (settings.allowedChannels.length === 0) return true; // No channels set = allow all (first-time setup)
-    return settings.allowedChannels.some(ch => {
-      return normalize(ch.name) === normalize(channelName) ||
-             (ch.url && channelUrl && normalize(ch.url) === normalize(channelUrl)) ||
-             (ch.handle && channelHandle && normalize(ch.handle) === normalize(channelHandle));
-    });
+    if (settings.allowedChannels.length === 0) return true;
+    return settings.allowedChannels.some(ch =>
+      normalize(ch.name) === normalize(channelName) ||
+      (ch.url && channelUrl && normalize(ch.url) === normalize(channelUrl)) ||
+      (ch.handle && channelHandle && normalize(ch.handle) === normalize(channelHandle))
+    );
   } else {
-    // In blocklist mode, blocked channels are rejected
-    return !settings.blockedChannels.some(ch => {
-      return normalize(ch.name) === normalize(channelName) ||
-             (ch.url && channelUrl && normalize(ch.url) === normalize(channelUrl)) ||
-             (ch.handle && channelHandle && normalize(ch.handle) === normalize(channelHandle));
-    });
+    return !settings.blockedChannels.some(ch =>
+      normalize(ch.name) === normalize(channelName) ||
+      (ch.url && channelUrl && normalize(ch.url) === normalize(channelUrl)) ||
+      (ch.handle && channelHandle && normalize(ch.handle) === normalize(channelHandle))
+    );
   }
 }
 
-function addAllowedChannel(channel) {
+function addAllowedChannel(channel: Channel): void {
   const exists = settings.allowedChannels.some(
     ch => ch.name.toLowerCase() === channel.name.toLowerCase()
   );
@@ -232,14 +254,14 @@ function addAllowedChannel(channel) {
   }
 }
 
-function removeAllowedChannel(channelName) {
+function removeAllowedChannel(channelName: string): void {
   settings.allowedChannels = settings.allowedChannels.filter(
     ch => ch.name.toLowerCase() !== channelName.toLowerCase()
   );
   saveSettings();
 }
 
-function addBlockedChannel(channel) {
+function addBlockedChannel(channel: Channel): void {
   const exists = settings.blockedChannels.some(
     ch => ch.name.toLowerCase() === channel.name.toLowerCase()
   );
@@ -252,11 +274,10 @@ function addBlockedChannel(channel) {
     });
     saveSettings();
   }
-  // Also remove from allowed if present
   removeAllowedChannel(channel.name);
 }
 
-function removeBlockedChannel(channelName) {
+function removeBlockedChannel(channelName: string): void {
   settings.blockedChannels = settings.blockedChannels.filter(
     ch => ch.name.toLowerCase() !== channelName.toLowerCase()
   );
@@ -264,15 +285,7 @@ function removeBlockedChannel(channelName) {
 }
 
 // ---------- Password ----------
-async function hashPassword(password) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'yt-kids-guard-salt-2024');
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function verifyPasswordHash(passwordHash) {
-  // Brute-force protection
+function verifyPasswordHash(passwordHash: string): PasswordResult {
   if (Date.now() < lockoutUntil) {
     return { success: false, locked: true, retryAfter: Math.ceil((lockoutUntil - Date.now()) / 1000) };
   }
@@ -285,15 +298,15 @@ function verifyPasswordHash(passwordHash) {
 
   failedPasswordAttempts++;
   if (failedPasswordAttempts >= 5) {
-    lockoutUntil = Date.now() + 60000; // 1 minute lockout
+    lockoutUntil = Date.now() + 60000;
     failedPasswordAttempts = 0;
     return { success: false, locked: true, retryAfter: 60 };
   }
   return { success: false, attemptsLeft: 5 - failedPasswordAttempts };
 }
 
-async function setPasswordHash(passwordHash) {
-  if (passwordHash && passwordHash.length === 64) { // SHA-256 hex = 64 chars
+async function setPasswordHash(passwordHash: string): Promise<string | null> {
+  if (passwordHash && passwordHash.length === 64) {
     settings.parentPasswordHash = passwordHash;
     await saveSettings();
     sessionToken = crypto.randomUUID();
@@ -302,22 +315,20 @@ async function setPasswordHash(passwordHash) {
   return null;
 }
 
-async function isAuthorized(msg) {
-  // Check session token from popup
+async function isAuthorized(msg: { sessionToken?: string }): Promise<boolean> {
   if (msg.sessionToken && msg.sessionToken === sessionToken) return true;
-  // Check parent mode (for content script thumbnail buttons)
-  const data = await chrome.storage.local.get(['parentModeUntil']);
-  if (data.parentModeUntil && Date.now() < data.parentModeUntil) return true;
+  const data = await chrome.storage.local.get(['contentAuthUntil']);
+  if (data.contentAuthUntil && Date.now() < data.contentAuthUntil) return true;
   return false;
 }
 
 // ---------- Broadcast ----------
-function broadcastState() {
+function broadcastState(): void {
   const state = getFullState();
   chrome.runtime.sendMessage({ type: 'STATE_CHANGED', state }).catch(() => {});
 }
 
-function getFullState() {
+function getFullState(): FullState {
   return {
     settings,
     watchData,
@@ -334,7 +345,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true; // async
 });
 
-async function handleMessage(msg, sender) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleMessage(msg: any, sender: chrome.runtime.MessageSender): Promise<any> {
   await loadSettings();
   await loadWatchData();
 
@@ -355,7 +367,7 @@ async function handleMessage(msg, sender) {
       if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       if (msg.dailyLimitMinutes !== undefined) settings.dailyLimitMinutes = msg.dailyLimitMinutes;
       if (msg.blockShorts !== undefined) settings.blockShorts = msg.blockShorts;
-      if (msg.filterMode !== undefined) settings.filterMode = msg.filterMode;
+      if (msg.filterMode !== undefined) settings.filterMode = msg.filterMode as FilterMode;
       if (msg.extensionEnabled !== undefined) settings.extensionEnabled = msg.extensionEnabled;
       await saveSettings();
       updateBadge();
@@ -376,7 +388,7 @@ async function handleMessage(msg, sender) {
 
     case 'ADD_TIME': {
       if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
-      const addMinutes = msg.minutes || 15;
+      const addMinutes: number = msg.minutes || 15;
       watchData.secondsUsed = Math.max(0, watchData.secondsUsed - (addMinutes * 60));
       await saveWatchData();
       if (!isTimeUp()) {
@@ -418,7 +430,7 @@ async function handleMessage(msg, sender) {
     case 'BLOCK_CURRENT_CHANNEL': {
       if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      if (tabs.length > 0 && currentChannelByTab[tabs[0].id]) {
+      if (tabs.length > 0 && tabs[0].id != null && currentChannelByTab[tabs[0].id]) {
         const ch = currentChannelByTab[tabs[0].id];
         addBlockedChannel(ch);
         await notifyAllYouTubeTabs({ type: 'SETTINGS_UPDATED', settings });
@@ -431,7 +443,7 @@ async function handleMessage(msg, sender) {
     case 'ALLOW_CURRENT_CHANNEL': {
       if (!(await isAuthorized(msg))) return { success: false, error: 'unauthorized' };
       const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      if (tabs.length > 0 && currentChannelByTab[tabs[0].id]) {
+      if (tabs.length > 0 && tabs[0].id != null && currentChannelByTab[tabs[0].id]) {
         const ch = currentChannelByTab[tabs[0].id];
         addAllowedChannel(ch);
         await notifyAllYouTubeTabs({ type: 'SETTINGS_UPDATED', settings });
@@ -442,36 +454,39 @@ async function handleMessage(msg, sender) {
     }
 
     case 'REPORT_CHANNEL': {
-      if (sender.tab) {
+      if (sender.tab?.id != null) {
         currentChannelByTab[sender.tab.id] = msg.channel;
       }
-      // Check if this channel is allowed
-      const allowed = isChannelAllowed(msg.channel.name, msg.channel.url, msg.channel.handle);
       const timeUp = isTimeUp();
       const isShort = msg.isShort && settings.blockShorts;
+
+      // Only check channel filtering on watch pages — browse pages (home, search, etc.)
+      // pick up random channel names from thumbnails and would false-positive block.
+      const channelAllowed = msg.isWatchPage
+        ? isChannelAllowed(msg.channel.name, msg.channel.url, msg.channel.handle)
+        : true;
+
+      const allowed = channelAllowed && !timeUp && !isShort;
       return {
-        allowed: allowed && !timeUp && !isShort,
-        reason: timeUp ? 'time_up' : (!allowed ? 'channel_blocked' : (isShort ? 'shorts_blocked' : null)),
+        allowed,
+        reason: timeUp ? 'time_up' : (!channelAllowed ? 'channel_blocked' : (isShort ? 'shorts_blocked' : null)),
         remainingSeconds: getRemainingSeconds(),
         settings: {
           blockShorts: settings.blockShorts,
           filterMode: settings.filterMode,
           extensionEnabled: settings.extensionEnabled,
         },
-      };
+      } satisfies ReportChannelResponse;
     }
 
     case 'HEARTBEAT': {
-      // Content script heartbeat - track active watching
-      if (sender.tab) {
+      if (sender.tab?.id != null) {
         const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
         if (tabs.length > 0 && tabs[0].id === sender.tab.id) {
-          // This YouTube tab is the active focused tab
-          // We'll let the alarm handle time tracking, but update badge
           updateBadge();
         }
       }
-      return { remainingSeconds: getRemainingSeconds(), isTimeUp: isTimeUp() };
+      return { remainingSeconds: getRemainingSeconds(), isTimeUp: isTimeUp() } satisfies HeartbeatResponse;
     }
 
     case 'CHECK_STATUS':
@@ -480,7 +495,49 @@ async function handleMessage(msg, sender) {
         isTimeUp: isTimeUp(),
         extensionEnabled: settings.extensionEnabled,
         blockShorts: settings.blockShorts,
-      };
+      } satisfies CheckStatusResponse;
+
+    case 'RESOLVE_VIDEO_URL': {
+      const videoUrl = msg.videoUrl as string;
+      if (!videoUrl) return { success: false, error: 'No URL provided' };
+      try {
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(videoUrl)}&format=json`;
+        const resp = await fetch(oembedUrl);
+        if (!resp.ok) return { success: false, error: 'Video not found' };
+        const data = await resp.json();
+        const authorUrl: string = data.author_url || '';
+        const handleMatch = authorUrl.match(/@([^/?\s]+)/);
+        return {
+          success: true,
+          channel: {
+            name: data.author_name || '',
+            url: authorUrl,
+            handle: handleMatch ? '@' + handleMatch[1] : '',
+          },
+        };
+      } catch {
+        return { success: false, error: 'Failed to fetch video info' };
+      }
+    }
+
+    case 'REGISTER_DEVICE': {
+      try {
+        const { registerDevice } = await import('./convex-sync');
+        const result = await registerDevice(msg.joinCode, msg.deviceName);
+        return result;
+      } catch (e) {
+        return { success: false, error: 'Sync not available' };
+      }
+    }
+
+    case 'GET_SYNC_STATUS': {
+      try {
+        const { getSyncStatus } = await import('./convex-sync');
+        return await getSyncStatus();
+      } catch {
+        return { connected: false };
+      }
+    }
 
     default:
       return { error: 'Unknown message type' };
@@ -493,11 +550,13 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ---------- Notify Tabs ----------
-async function notifyAllYouTubeTabs(message) {
+async function notifyAllYouTubeTabs(message: object): Promise<void> {
   const tabs = await chrome.tabs.query({ url: '*://*.youtube.com/*' });
   for (const tab of tabs) {
     try {
-      await chrome.tabs.sendMessage(tab.id, message);
+      if (tab.id != null) {
+        await chrome.tabs.sendMessage(tab.id, message);
+      }
     } catch {}
   }
 }
