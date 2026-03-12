@@ -14,9 +14,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx convex dev --once
+      - run: npx convex deploy
         env:
-          CONVEX_DEPLOYMENT: ${{ secrets.CONVEX_DEPLOYMENT }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
 
   build-extension:
     runs-on: ubuntu-latest
