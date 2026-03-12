@@ -7,7 +7,7 @@ import { ConvexHttpClient } from 'convex/browser';
 import type { Settings, WatchData } from './types';
 
 // The Convex deployment URL — set via environment or hardcode after deploy
-const CONVEX_URL = 'https://dashing-hippopotamus-836.convex.cloud';
+const CONVEX_URL = 'https://hallowed-dogfish-39.convex.cloud';
 
 let client: ConvexHttpClient | null = null;
 let deviceToken: string | null = null;
