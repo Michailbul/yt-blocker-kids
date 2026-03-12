@@ -9,23 +9,27 @@
 2. Pay the $5 fee if prompted
 3. Accept the developer agreement
 
-## 2. Upload the Extension
+## 2. Account Tab (DO THIS FIRST)
+1. Go to **Account** tab in the developer console
+2. Set your **contact email** (e.g. mbuloichykai@gmail.com)
+3. **Verify** the contact email (click the verification link sent to your inbox)
+
+## 3. Upload the Extension
 1. Click **"New Item"** (blue button, top right)
 2. Upload `yt-kids-guard.zip` from the project root
    - Generate it with: `npm run package`
 3. Click **"Upload"**
 
-## 3. Fill in Store Listing
+## 4. Fill in Store Listing
 
 ### Store Listing Tab
 | Field | Value |
 |-------|-------|
-| **Language** | English |
+| **Language** | English (United States) |
 | **Extension name** | YT Kids Guard — Parental YouTube Timer & Blocker |
 | **Summary** (132 chars max) | Parental control for YouTube: set watch timers, allow specific channels, block Shorts. Manage from your phone via web dashboard. |
 | **Description** | See below |
 | **Category** | Productivity (or search for "Family") |
-| **Language** | English (United States) |
 
 #### Description (copy this):
 ```
@@ -49,20 +53,15 @@ The extension only runs on YouTube — no data is collected from any other websi
 Works on Chrome, Brave, Edge, and any Chromium-based browser.
 ```
 
-### Screenshots
-You need **1280×800** or **640×400** PNG/JPEG screenshots. Take these:
+### Screenshots (READY — upload from `store-assets/`)
+Upload these pre-made 1280×800 PNG files from the `store-assets/` folder:
 
-1. **YouTube with overlay** — Go to YouTube, trigger the time-up overlay (set timer to 1 min), screenshot the full page
-2. **Popup — Settings tab** — Open the extension popup, show the settings tab with timer, mode toggle, shorts blocking
-3. **Popup — Channels tab** — Show allowed/blocked channel lists
-4. **Web dashboard** — Screenshot https://yt-blocker-kids.vercel.app showing the dashboard with settings
+1. **`screenshot1.png`** — Main hero: timer popup + feature list
+2. **`screenshot2.png`** — Web dashboard: remote management from phone
+3. **`screenshot3.png`** — Channel control: allowed/blocked lists + blocked overlay
 
-To take a 1280×800 screenshot in Brave:
-- Open DevTools (F12) → click the device toolbar icon → set dimensions to 1280×800
-- Or use a screenshot extension
-
-### Icon
-Already included in the ZIP (128×128 PNG). The store will use it automatically.
+### Icon (READY — upload from `store-assets/`)
+Upload **`store-assets/icon128.png`** (128×128 PNG) in the Store Listing tab under "Icon".
 
 ### Promotional Images (optional but recommended)
 | Size | Purpose |
@@ -70,9 +69,9 @@ Already included in the ZIP (128×128 PNG). The store will use it automatically.
 | 440×280 | Small promo tile (shown in search results) |
 | 1400×560 | Large promo tile (shown on featured pages) |
 
-## 4. Privacy Tab
+## 5. Privacy Tab
 
-### Single Purpose
+### Single Purpose (copy this):
 ```
 Parental control for YouTube: manages watch time limits and channel filtering for children's accounts.
 ```
@@ -89,40 +88,45 @@ Parental control for YouTube: manages watch time limits and channel filtering fo
 | Host: youtube.com | The extension only operates on YouTube to monitor and control watch time |
 | Host: convex.cloud | Syncs settings with the parent's web dashboard (optional cloud feature) |
 
+### Remote Code Use Justification (copy this into the Privacy practices tab):
+```
+This extension does NOT use remote code. All JavaScript is bundled locally in the extension package. The only remote communication is HTTPS API calls to our Convex backend (convex.cloud) to sync parental settings (timer limits, channel allow/block lists) when the user opts into the optional cloud sync feature. No code is fetched, evaluated, or executed from any remote source. The convex.cloud host permission is used solely for JSON data transfer (settings sync and watch time reporting) via standard fetch() API calls.
+```
+
 ### Data Usage
-- Check: "I do not sell or transfer user data to third parties"
-- Check: "I do not use or transfer user data for purposes unrelated to the item's single purpose"
-- Check: "I do not use or transfer user data to determine creditworthiness or for lending purposes"
+Check ALL three boxes:
+- [x] "I do not sell or transfer user data to third parties"
+- [x] "I do not use or transfer user data for purposes unrelated to the item's single purpose"
+- [x] "I do not use or transfer user data to determine creditworthiness or for lending purposes"
 
-### Privacy Policy
-You need a privacy policy URL. Quick option — create a GitHub Gist or a page on your site. Content:
-
+### Privacy Policy URL (READY):
 ```
-Privacy Policy for YT Kids Guard
-
-Last updated: March 2026
-
-YT Kids Guard stores settings (watch timer, channel lists, parent password hash)
-locally in Chrome storage.
-
-If you opt into cloud sync, settings are synced to our Convex backend
-(https://dashing-hippopotamus-836.convex.cloud) and associated with your family
-account. No personal data beyond email (for account creation) and YouTube channel
-names is stored.
-
-We do not collect browsing history, video watching data, or any information from
-sites other than YouTube. We do not sell or share any data with third parties.
-
-Contact: [your email]
+https://yt-blocker-kids.vercel.app/privacy.html
 ```
+Paste this URL in the Privacy Policy field. It's already live.
 
-## 5. Distribution Tab
+## 6. Distribution Tab
 - **Visibility**: Public
 - **Distribution**: All regions (or select specific ones)
 - **Pricing**: Free
 
-## 6. Submit for Review
+## 7. Submit for Review
 Click **"Submit for Review"** — typically takes 1-3 business days.
+
+---
+
+## Quick Checklist (fixes for the 6 errors)
+
+| Error | Fix | Status |
+|-------|-----|--------|
+| Remote code justification required | Paste the text from Section 5 "Remote Code Use Justification" into Privacy practices tab | Copy-paste |
+| At least one screenshot required | Upload `store-assets/screenshot1.png`, `screenshot2.png`, `screenshot3.png` | Ready in `store-assets/` |
+| Icon image missing | Upload `store-assets/icon128.png` in Store Listing | Ready in `store-assets/` |
+| Privacy policy link not reachable | Enter `https://yt-blocker-kids.vercel.app/privacy.html` | Live now |
+| Contact email required | Set email in Account tab | Manual — do this first |
+| Verify contact email | Click verification link in your inbox | Manual — do this first |
+
+---
 
 ## After Approval
 
