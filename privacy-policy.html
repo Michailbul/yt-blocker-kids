@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — YT Kids Guard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #FAF8F4;
+      color: #2D2A26;
+      line-height: 1.7;
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 740px;
+      margin: 0 auto;
+    }
+    header {
+      border-bottom: 2px solid #B5A67A;
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2D2A26;
+    }
+    header p {
+      margin-top: 0.4rem;
+      color: #6b6660;
+      font-size: 0.9rem;
+    }
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2D2A26;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      padding-left: 0.75rem;
+      border-left: 3px solid #7BA67B;
+    }
+    p { margin-bottom: 0.9rem; }
+    ul {
+      margin: 0.5rem 0 0.9rem 1.4rem;
+    }
+    ul li { margin-bottom: 0.4rem; }
+    .highlight-box {
+      background: #eef4ee;
+      border: 1px solid #7BA67B;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0;
+      font-weight: 500;
+      color: #2D2A26;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.75rem 0 1rem;
+      font-size: 0.9rem;
+    }
+    th {
+      background: #B5A67A;
+      color: #fff;
+      padding: 0.6rem 0.8rem;
+      text-align: left;
+    }
+    td {
+      border-bottom: 1px solid #e4e0d8;
+      padding: 0.6rem 0.8rem;
+      vertical-align: top;
+    }
+    tr:nth-child(even) td { background: #f4f2ee; }
+    code {
+      background: #e8e4da;
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      font-size: 0.88em;
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #ddd8cc;
+      font-size: 0.85rem;
+      color: #7a7570;
+    }
+    a { color: #7BA67B; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Privacy Policy — YT Kids Guard</h1>
+      <p>Last updated: March 12, 2026</p>
+    </header>
+
+    <div class="highlight-box">
+      🔒 YT Kids Guard does <strong>not</strong> collect, transmit, or sell any personal data.
+      Everything stays on your device.
+    </div>
+
+    <h2>1. What YT Kids Guard Does</h2>
+    <p>YT Kids Guard is a Chrome browser extension that helps parents manage their children's YouTube usage. It provides daily watch time limits, channel allow/block lists, and Shorts blocking — all controlled by a parent password.</p>
+
+    <h2>2. Data We Store Locally</h2>
+    <p>All data is stored <strong>only on your device</strong> using Chrome's built-in storage APIs. Nothing is sent to any external server unless you explicitly opt into cloud sync (see Section 3).</p>
+
+    <p><strong>chrome.storage.sync</strong> (synced across your Chrome profile, on your Google account):</p>
+    <ul>
+      <li>Parent password hash (SHA-256, salted — the actual password is never stored)</li>
+      <li>Daily watch time limit setting</li>
+      <li>Allowed channels list (channel names and handles)</li>
+      <li>Blocked channels list (channel names and handles)</li>
+      <li>Shorts blocking preference and filter mode</li>
+      <li>Extension enabled/disabled state</li>
+    </ul>
+
+    <p><strong>chrome.storage.local</strong> (device only, not synced):</p>
+    <ul>
+      <li>Daily watch time counter (total seconds used today — resets at midnight)</li>
+    </ul>
+
+    <h2>3. Optional Cloud Sync</h2>
+    <p>If you choose to create a family account at <a href="https://yt-blocker-kids.vercel.app">yt-blocker-kids.vercel.app</a>, your settings will be synced to our backend (Convex). In that case:</p>
+    <ul>
+      <li>Your email address is stored for account authentication</li>
+      <li>Your extension settings (timer, channel lists) are stored server-side so you can manage them from your phone</li>
+      <li>No YouTube viewing history, video data, or personal browsing data is ever transmitted</li>
+    </ul>
+    <p>Cloud sync is <strong>entirely optional</strong>. The extension works fully offline without it.</p>
+
+    <h2>4. Permissions Explained</h2>
+    <table>
+      <tr><th>Permission</th><th>Why It's Needed</th></tr>
+      <tr><td><code>tabs</code></td><td>Detect when a YouTube tab is active to track watch time accurately</td></tr>
+      <tr><td><code>storage</code></td><td>Save parental settings and the daily watch time counter</td></tr>
+      <tr><td><code>alarms</code></td><td>Check watch time every minute and reset the counter at midnight</td></tr>
+      <tr><td><code>activeTab</code></td><td>Read the current YouTube channel name when the popup is opened</td></tr>
+      <tr><td><code>scripting</code></td><td>Inject the content script that shows overlays and manages channel filtering on YouTube</td></tr>
+      <tr><td><code>sidePanel</code></td><td>Allows the settings panel to open as a browser side panel</td></tr>
+      <tr><td>Host: <code>*.youtube.com</code></td><td>The extension only runs on YouTube — no other site is accessed</td></tr>
+      <tr><td>Host: <code>*.convex.cloud</code></td><td>Used only when optional cloud sync is enabled, to communicate with the family dashboard backend</td></tr>
+    </table>
+
+    <h2>5. Data We Do NOT Collect</h2>
+    <ul>
+      <li>Browsing history (on YouTube or anywhere else)</li>
+      <li>Video watch history or titles</li>
+      <li>Search queries</li>
+      <li>Usernames or Google account details</li>
+      <li>Device identifiers, IP addresses, or location</li>
+      <li>Any information from websites other than YouTube</li>
+    </ul>
+
+    <h2>6. Children's Privacy</h2>
+    <p>This extension is designed for families with children. The daily time counter stores only a total-seconds count and the current date. It does not record which videos or channels were watched. No child-identifiable information is collected or stored.</p>
+
+    <h2>7. Password Security</h2>
+    <ul>
+      <li>Passwords are hashed with SHA-256 before storage — the plaintext password is never saved</li>
+      <li>Brute-force protection: 5 failed attempts trigger a 60-second lockout</li>
+    </ul>
+
+    <h2>8. Data Deletion</h2>
+    <p>All local data is removed when you uninstall the extension from <code>chrome://extensions/</code>. If you created a family account, you may request deletion by contacting us at the email below.</p>
+
+    <h2>9. Third Parties</h2>
+    <p>We do not sell, share, or transfer any user data to third parties. No analytics SDKs, ad networks, or tracking scripts are included in this extension.</p>
+
+    <h2>10. Changes to This Policy</h2>
+    <p>If this policy is updated, the new version will be published here with an updated date. We will never introduce data collection without explicit user consent.</p>
+
+    <h2>11. Contact</h2>
+    <p>For questions or data requests, please open an issue on the <a href="https://github.com/Michailbul/yt-blocker-kids/issues">GitHub repository</a> or email <a href="mailto:mbuloichykai@gmail.com">mbuloichykai@gmail.com</a>.</p>
+
+    <footer>
+      &copy; 2026 YT Kids Guard. This extension is free and open source.
+    </footer>
+  </div>
+</body>
+</html>
